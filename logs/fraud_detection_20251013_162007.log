@@ -1,0 +1,1291 @@
+SYSTEM INFORMATION
+PyTorch Version: 2.6.0+cpu
+CUDA Available: False
+Number of CPU cores: 12
+Using device: cpu
+Loaded existing transaction graph
+
+Original Dataset: Data(x=[152833, 8], edge_index=[2, 98213], edge_attr=[98213, 2], edge_type=[98213], edge_label=[98213], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 98213
+Number of fraud transactions: 8213.0
+Number of non-fraud transactions: 90000.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.96:1
+
+Configuration: {
+  "downsampled_upweight": 60,
+  "target_ratio": 0.45,
+  "max_epochs": 500,
+  "patience": 20,
+  "learning_rate": 0.001,
+  "weight_decay": 0.01,
+  "focal_gamma": 2.0,
+  "focal_weight": 0.7,
+  "model_params": {
+    "hidden_dim": 64,
+    "heads": 4,
+    "num_gnn_layers": 3,
+    "dropout": 0.3
+  }
+}
+
+Starting experiments with 20 different seeds...
+Seeds to test: [42, 123, 456, 789, 1337, 2023, 2024, 3141, 5432, 9876, 111, 222, 333, 444, 555, 666, 777, 888, 999, 1111]
+
+================================================================================
+EXPERIMENT 1/20 - SEED: 42
+Set random seed to: 42
+Started experiment with seed 42
+Oversampling 45794 fraud transactions...
+
+Seed 42 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 42 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 42 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 42 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 42...
+Seed 42 - Epoch     0 | Loss:  2796.1885 | Val F1:  0.0000 | Val AUC: 0.6500 | Val AP: 0.1154
+Seed 42 - Epoch    25 | Loss:     0.7657 | Val F1:  0.0145 | Val AUC: 0.5350 | Val AP: 0.0954
+Early stopping at epoch 26 for seed 42
+Experiment completed - Seed: 42
+
+Test AUC: 0.8316
+Test F1-Score: 0.3584
+Test Precision: 0.2196
+Test Recall: 0.9740
+Test Specificity: 0.6844
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  9240
+False Positives: 4260
+False Negatives: 32
+True Positives:  1199
+
+Training time: 110.7 seconds
+Completed seed 42
+================================================================================
+
+================================================================================
+EXPERIMENT 2/20 - SEED: 123
+Set random seed to: 123
+Started experiment with seed 123
+Oversampling 45794 fraud transactions...
+
+Seed 123 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 123 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 123 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 123 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 123...
+Seed 123 - Epoch     0 | Loss:  2350.6438 | Val F1:  0.0000 | Val AUC: 0.5034 | Val AP: 0.0841
+Seed 123 - Epoch    25 | Loss:     0.1846 | Val F1:  0.0145 | Val AUC: 0.5037 | Val AP: 0.0903
+Early stopping at epoch 30 for seed 123
+Experiment completed - Seed: 123
+
+Test AUC: 0.8153
+Test F1-Score: 0.3416
+Test Precision: 0.2111
+Test Recall: 0.8960
+Test Specificity: 0.6946
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  9377
+False Positives: 4123
+False Negatives: 128
+True Positives:  1103
+
+Training time: 112.8 seconds
+Completed seed 123
+================================================================================
+
+================================================================================
+EXPERIMENT 3/20 - SEED: 456
+Set random seed to: 456
+Started experiment with seed 456
+Oversampling 45794 fraud transactions...
+
+Seed 456 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 456 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 456 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 456 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 456...
+Seed 456 - Epoch     0 | Loss:  3790.4646 | Val F1:  0.0000 | Val AUC: 0.5016 | Val AP: 0.0838
+Seed 456 - Epoch    25 | Loss:    20.9970 | Val F1:  0.0581 | Val AUC: 0.6035 | Val AP: 0.1020
+Early stopping at epoch 40 for seed 456
+Experiment completed - Seed: 456
+
+Test AUC: 0.8641
+Test F1-Score: 0.4035
+Test Precision: 0.2554
+Test Recall: 0.9610
+Test Specificity: 0.7445
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  10051
+False Positives: 3449
+False Negatives: 48
+True Positives:  1183
+
+Training time: 153.8 seconds
+Completed seed 456
+================================================================================
+
+================================================================================
+EXPERIMENT 4/20 - SEED: 789
+Set random seed to: 789
+Started experiment with seed 789
+Oversampling 45794 fraud transactions...
+
+Seed 789 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 789 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 789 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 789 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 789...
+Seed 789 - Epoch     0 | Loss:  4042.9089 | Val F1:  0.0000 | Val AUC: 0.5035 | Val AP: 0.0841
+Seed 789 - Epoch    25 | Loss:     3.8585 | Val F1:  0.0474 | Val AUC: 0.6234 | Val AP: 0.1076
+Early stopping at epoch 40 for seed 789
+Experiment completed - Seed: 789
+
+Test AUC: 0.7873
+Test F1-Score: 0.3534
+Test Precision: 0.2150
+Test Recall: 0.9919
+Test Specificity: 0.6698
+Optimal Threshold: 0.8171
+
+Confusion Matrix:
+True Negatives:  9042
+False Positives: 4458
+False Negatives: 10
+True Positives:  1221
+
+Training time: 92.5 seconds
+Completed seed 789
+================================================================================
+
+================================================================================
+EXPERIMENT 5/20 - SEED: 1337
+Set random seed to: 1337
+Started experiment with seed 1337
+Oversampling 45794 fraud transactions...
+
+Seed 1337 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 1337 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 1337 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 1337 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 1337...
+Seed 1337 - Epoch     0 | Loss:  3924.9722 | Val F1:  0.0000 | Val AUC: 0.5412 | Val AP: 0.0904
+Seed 1337 - Epoch    25 | Loss:     0.7076 | Val F1:  0.0268 | Val AUC: 0.5351 | Val AP: 0.0983
+Early stopping at epoch 25 for seed 1337
+Experiment completed - Seed: 1337
+
+Test AUC: 0.5969
+Test F1-Score: 0.0000
+Test Precision: 0.0000
+Test Recall: 0.0000
+Test Specificity: 1.0000
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  13500
+False Positives: 0
+False Negatives: 1231
+True Positives:  0
+
+Training time: 62.8 seconds
+Completed seed 1337
+================================================================================
+
+================================================================================
+EXPERIMENT 6/20 - SEED: 2023
+Set random seed to: 2023
+Started experiment with seed 2023
+Oversampling 45794 fraud transactions...
+
+Seed 2023 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 2023 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 2023 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 2023 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 2023...
+Seed 2023 - Epoch     0 | Loss:  6791.1787 | Val F1:  0.0000 | Val AUC: 0.5465 | Val AP: 0.0913
+Seed 2023 - Epoch    25 | Loss:    29.5902 | Val F1:  0.0000 | Val AUC: 0.9335 | Val AP: 0.4975
+Seed 2023 - Epoch    50 | Loss:     0.5419 | Val F1:  0.0788 | Val AUC: 0.5631 | Val AP: 0.1105
+Early stopping at epoch 53 for seed 2023
+Experiment completed - Seed: 2023
+
+Test AUC: 0.9441
+Test F1-Score: 0.6166
+Test Precision: 0.4795
+Test Recall: 0.8635
+Test Specificity: 0.9145
+Optimal Threshold: 0.9629
+
+Confusion Matrix:
+True Negatives:  12346
+False Positives: 1154
+False Negatives: 168
+True Positives:  1063
+
+Training time: 126.7 seconds
+Completed seed 2023
+================================================================================
+
+================================================================================
+EXPERIMENT 7/20 - SEED: 2024
+Set random seed to: 2024
+Started experiment with seed 2024
+Oversampling 45794 fraud transactions...
+
+Seed 2024 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 2024 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 2024 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 2024 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 2024...
+Seed 2024 - Epoch     0 | Loss:  1899.6166 | Val F1:  0.0000 | Val AUC: 0.5033 | Val AP: 0.0841
+Seed 2024 - Epoch    25 | Loss:     0.6469 | Val F1:  0.0177 | Val AUC: 0.5262 | Val AP: 0.0952
+Early stopping at epoch 31 for seed 2024
+Experiment completed - Seed: 2024
+
+Test AUC: 0.7126
+Test F1-Score: 0.3037
+Test Precision: 0.1998
+Test Recall: 0.6328
+Test Specificity: 0.7689
+Optimal Threshold: 0.7369
+
+Confusion Matrix:
+True Negatives:  10380
+False Positives: 3120
+False Negatives: 452
+True Positives:  779
+
+Training time: 60.5 seconds
+Completed seed 2024
+================================================================================
+
+================================================================================
+EXPERIMENT 8/20 - SEED: 3141
+Set random seed to: 3141
+Started experiment with seed 3141
+Oversampling 45794 fraud transactions...
+
+Seed 3141 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 3141 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 3141 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 3141 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 3141...
+Seed 3141 - Epoch     0 | Loss:  1779.8556 | Val F1:  0.0151 | Val AUC: 0.3472 | Val AP: 0.0808
+Seed 3141 - Epoch    25 | Loss:    16.4430 | Val F1:  0.4141 | Val AUC: 0.8728 | Val AP: 0.3051
+Early stopping at epoch 38 for seed 3141
+Experiment completed - Seed: 3141
+
+Test AUC: 0.8583
+Test F1-Score: 0.4386
+Test Precision: 0.5760
+Test Recall: 0.3542
+Test Specificity: 0.9762
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  13179
+False Positives: 321
+False Negatives: 795
+True Positives:  436
+
+Training time: 97.2 seconds
+Completed seed 3141
+================================================================================
+
+================================================================================
+EXPERIMENT 9/20 - SEED: 5432
+Set random seed to: 5432
+Started experiment with seed 5432
+Oversampling 45794 fraud transactions...
+
+Seed 5432 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 5432 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 5432 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 5432 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 5432...
+Seed 5432 - Epoch     0 | Loss:  2386.3479 | Val F1:  0.0287 | Val AUC: 0.4426 | Val AP: 0.0919
+Seed 5432 - Epoch    25 | Loss:    16.1189 | Val F1:  0.0428 | Val AUC: 0.6487 | Val AP: 0.1242
+Early stopping at epoch 40 for seed 5432
+Experiment completed - Seed: 5432
+
+Test AUC: 0.9187
+Test F1-Score: 0.5418
+Test Precision: 0.3839
+Test Recall: 0.9204
+Test Specificity: 0.8653
+Optimal Threshold: 0.9998
+
+Confusion Matrix:
+True Negatives:  11682
+False Positives: 1818
+False Negatives: 98
+True Positives:  1133
+
+Training time: 97.6 seconds
+Completed seed 5432
+================================================================================
+
+================================================================================
+EXPERIMENT 10/20 - SEED: 9876
+Set random seed to: 9876
+Started experiment with seed 9876
+Oversampling 45794 fraud transactions...
+
+Seed 9876 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 9876 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 9876 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 9876 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 9876...
+Seed 9876 - Epoch     0 | Loss:  1932.9172 | Val F1:  0.0298 | Val AUC: 0.3586 | Val AP: 0.0789
+Seed 9876 - Epoch    25 | Loss:     0.4751 | Val F1:  0.0552 | Val AUC: 0.5377 | Val AP: 0.1134
+Early stopping at epoch 31 for seed 9876
+Experiment completed - Seed: 9876
+
+Test AUC: 0.5028
+Test F1-Score: 0.1966
+Test Precision: 0.1141
+Test Recall: 0.7084
+Test Specificity: 0.4986
+Optimal Threshold: 0.0000
+
+Confusion Matrix:
+True Negatives:  6731
+False Positives: 6769
+False Negatives: 359
+True Positives:  872
+
+Training time: 76.7 seconds
+Completed seed 9876
+================================================================================
+
+================================================================================
+EXPERIMENT 11/20 - SEED: 111
+Set random seed to: 111
+Started experiment with seed 111
+Oversampling 45794 fraud transactions...
+
+Seed 111 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 111 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 111 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 111 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 111...
+Seed 111 - Epoch     0 | Loss:  5452.4824 | Val F1:  0.1541 | Val AUC: 0.4999 | Val AP: 0.0835
+Seed 111 - Epoch    25 | Loss:     2.1331 | Val F1:  0.0425 | Val AUC: 0.5713 | Val AP: 0.1139
+Early stopping at epoch 33 for seed 111
+Experiment completed - Seed: 111
+
+Test AUC: 0.9079
+Test F1-Score: 0.5230
+Test Precision: 0.3698
+Test Recall: 0.8928
+Test Specificity: 0.8613
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  11627
+False Positives: 1873
+False Negatives: 132
+True Positives:  1099
+
+Training time: 81.6 seconds
+Completed seed 111
+================================================================================
+
+================================================================================
+EXPERIMENT 12/20 - SEED: 222
+Set random seed to: 222
+Started experiment with seed 222
+Oversampling 45794 fraud transactions...
+
+Seed 222 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 222 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 222 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 222 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 222...
+Seed 222 - Epoch     0 | Loss:  3271.6143 | Val F1:  0.0000 | Val AUC: 0.5458 | Val AP: 0.0912
+Seed 222 - Epoch    25 | Loss:     2.8243 | Val F1:  0.0498 | Val AUC: 0.6141 | Val AP: 0.1178
+Early stopping at epoch 38 for seed 222
+Experiment completed - Seed: 222
+
+Test AUC: 0.9154
+Test F1-Score: 0.6011
+Test Precision: 0.7737
+Test Recall: 0.4915
+Test Specificity: 0.9869
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  13323
+False Positives: 177
+False Negatives: 626
+True Positives:  605
+
+Training time: 92.5 seconds
+Completed seed 222
+================================================================================
+
+================================================================================
+EXPERIMENT 13/20 - SEED: 333
+Set random seed to: 333
+Started experiment with seed 333
+Oversampling 45794 fraud transactions...
+
+Seed 333 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 333 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 333 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 333 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 333...
+Seed 333 - Epoch     0 | Loss:  9953.0186 | Val F1:  0.0000 | Val AUC: 0.6168 | Val AP: 0.1064
+Seed 333 - Epoch    25 | Loss:    13.9393 | Val F1:  0.0297 | Val AUC: 0.6849 | Val AP: 0.1369
+Early stopping at epoch 41 for seed 333
+Experiment completed - Seed: 333
+
+Test AUC: 0.9278
+Test F1-Score: 0.5863
+Test Precision: 0.5878
+Test Recall: 0.5849
+Test Specificity: 0.9626
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  12995
+False Positives: 505
+False Negatives: 511
+True Positives:  720
+
+Training time: 98.1 seconds
+Completed seed 333
+================================================================================
+
+================================================================================
+EXPERIMENT 14/20 - SEED: 444
+Set random seed to: 444
+Started experiment with seed 444
+Oversampling 45794 fraud transactions...
+
+Seed 444 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 444 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 444 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 444 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 444...
+Seed 444 - Epoch     0 | Loss:  6246.3232 | Val F1:  0.1630 | Val AUC: 0.5324 | Val AP: 0.0888
+Seed 444 - Epoch    25 | Loss:    21.8976 | Val F1:  0.5762 | Val AUC: 0.9016 | Val AP: 0.5745
+Seed 444 - Epoch    50 | Loss:     1.4350 | Val F1:  0.0563 | Val AUC: 0.6295 | Val AP: 0.1329
+Early stopping at epoch 52 for seed 444
+Experiment completed - Seed: 444
+
+Test AUC: 0.9618
+Test F1-Score: 0.6592
+Test Precision: 0.7059
+Test Recall: 0.6182
+Test Specificity: 0.9765
+Optimal Threshold: 0.7205
+
+Confusion Matrix:
+True Negatives:  13183
+False Positives: 317
+False Negatives: 470
+True Positives:  761
+
+Training time: 139.6 seconds
+Completed seed 444
+================================================================================
+
+================================================================================
+EXPERIMENT 15/20 - SEED: 555
+Set random seed to: 555
+Started experiment with seed 555
+Oversampling 45794 fraud transactions...
+
+Seed 555 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 555 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 555 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 555 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 555...
+Seed 555 - Epoch     0 | Loss:  2285.7505 | Val F1:  0.0000 | Val AUC: 0.6715 | Val AP: 0.1222
+Early stopping at epoch 19 for seed 555
+Error in experiment with seed 555: [Errno 2] No such file or directory: 'models/best_fraud_model_seed_555.pth'
+
+================================================================================
+EXPERIMENT 16/20 - SEED: 666
+Set random seed to: 666
+Started experiment with seed 666
+Oversampling 45794 fraud transactions...
+
+Seed 666 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 666 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 666 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 666 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 666...
+Seed 666 - Epoch     0 | Loss:  3586.7727 | Val F1:  0.1875 | Val AUC: 0.6054 | Val AP: 0.1036
+Seed 666 - Epoch    25 | Loss:     3.8413 | Val F1:  0.0304 | Val AUC: 0.6018 | Val AP: 0.1152
+Early stopping at epoch 29 for seed 666
+Experiment completed - Seed: 666
+
+Test AUC: 0.8543
+Test F1-Score: 0.3879
+Test Precision: 0.2455
+Test Recall: 0.9236
+Test Specificity: 0.7412
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  10006
+False Positives: 3494
+False Negatives: 94
+True Positives:  1137
+
+Training time: 78.7 seconds
+Completed seed 666
+================================================================================
+
+================================================================================
+EXPERIMENT 17/20 - SEED: 777
+Set random seed to: 777
+Started experiment with seed 777
+Oversampling 45794 fraud transactions...
+
+Seed 777 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 777 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 777 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 777 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 777...
+Seed 777 - Epoch     0 | Loss: 15063.1348 | Val F1:  0.0263 | Val AUC: 0.4444 | Val AP: 0.0824
+Seed 777 - Epoch    25 | Loss:    34.9223 | Val F1:  0.4922 | Val AUC: 0.8981 | Val AP: 0.3333
+Early stopping at epoch 45 for seed 777
+Experiment completed - Seed: 777
+
+Test AUC: 0.9017
+Test F1-Score: 0.4936
+Test Precision: 0.3376
+Test Recall: 0.9171
+Test Specificity: 0.8359
+Optimal Threshold: 1.0000
+
+Confusion Matrix:
+True Negatives:  11285
+False Positives: 2215
+False Negatives: 102
+True Positives:  1129
+
+Training time: 120.5 seconds
+Completed seed 777
+================================================================================
+
+================================================================================
+EXPERIMENT 18/20 - SEED: 888
+Set random seed to: 888
+Started experiment with seed 888
+Oversampling 45794 fraud transactions...
+
+Seed 888 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 888 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 888 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 888 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 888...
+Seed 888 - Epoch     0 | Loss:  3283.1353 | Val F1:  0.0000 | Val AUC: 0.5070 | Val AP: 0.0846
+Seed 888 - Epoch    25 | Loss:     3.2743 | Val F1:  0.0113 | Val AUC: 0.5729 | Val AP: 0.1009
+Early stopping at epoch 33 for seed 888
+Experiment completed - Seed: 888
+
+Test AUC: 0.9645
+Test F1-Score: 0.7080
+Test Precision: 0.5762
+Test Recall: 0.9180
+Test Specificity: 0.9384
+Optimal Threshold: 0.9826
+
+Confusion Matrix:
+True Negatives:  12669
+False Positives: 831
+False Negatives: 101
+True Positives:  1130
+
+Training time: 82.2 seconds
+Completed seed 888
+================================================================================
+
+================================================================================
+EXPERIMENT 19/20 - SEED: 999
+Set random seed to: 999
+Started experiment with seed 999
+Oversampling 45794 fraud transactions...
+
+Seed 999 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 999 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 999 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 999 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 999...
+Seed 999 - Epoch     0 | Loss: 12320.8115 | Val F1:  0.0000 | Val AUC: 0.5162 | Val AP: 0.0861
+Seed 999 - Epoch    25 | Loss:    14.3412 | Val F1:  0.2188 | Val AUC: 0.4183 | Val AP: 0.0695
+Early stopping at epoch 38 for seed 999
+Experiment completed - Seed: 999
+
+Test AUC: 0.9452
+Test F1-Score: 0.6369
+Test Precision: 0.4869
+Test Recall: 0.9204
+Test Specificity: 0.9116
+Optimal Threshold: 0.9963
+
+Confusion Matrix:
+True Negatives:  12306
+False Positives: 1194
+False Negatives: 98
+True Positives:  1133
+
+Training time: 96.2 seconds
+Completed seed 999
+================================================================================
+
+================================================================================
+EXPERIMENT 20/20 - SEED: 1111
+Set random seed to: 1111
+Started experiment with seed 1111
+Oversampling 45794 fraud transactions...
+
+Seed 1111 - After Oversampling Training Data: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 1111 - Train Set: Data(x=[152833, 8], edge_index=[2, 114545], edge_attr=[114545, 2], edge_label=[114545], edge_type=[114545], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 114545
+Number of fraud transactions: 51545.0
+Number of non-fraud transactions: 63000.0
+Fraud ratio: 0.4500
+Class imbalance ratio: 1.22:1
+
+Seed 1111 - Validation Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Seed 1111 - Test Set: Data(x=[152833, 8], edge_index=[2, 14731], edge_attr=[14731, 2], edge_label=[14731], edge_type=[14731], num_nodes=152833)
+Number of nodes: 152833
+Number of edges: 14731
+Number of fraud transactions: 1231.0
+Number of non-fraud transactions: 13500.0
+Fraud ratio: 0.0836
+Class imbalance ratio: 10.97:1
+
+Starting training for seed 1111...
+Seed 1111 - Epoch     0 | Loss:  6395.5854 | Val F1:  0.0000 | Val AUC: 0.5256 | Val AP: 0.0877
+Seed 1111 - Epoch    25 | Loss:     0.1763 | Val F1:  0.0145 | Val AUC: 0.5036 | Val AP: 0.0903
+Early stopping at epoch 32 for seed 1111
+Experiment completed - Seed: 1111
+
+Test AUC: 0.6565
+Test F1-Score: 0.1158
+Test Precision: 0.3586
+Test Recall: 0.0690
+Test Specificity: 0.9887
+Optimal Threshold: 0.4617
+
+Confusion Matrix:
+True Negatives:  13348
+False Positives: 152
+False Negatives: 1146
+True Positives:  85
+
+Training time: 74.7 seconds
+Completed seed 1111
+================================================================================
+
+================================================================================
+EXPERIMENT SUMMARY
+================================================================================
+Rank Seed     Test F1   Test AUC   Val F1   Epochs   Time(s) 
+--------------------------------------------------------------------------------
+1    888      0.7080    0.9645     0.7245   34       82      
+2    444      0.6592    0.9618     0.6842   53       139     
+3    999      0.6369    0.9452     0.6470   39       96      
+4    2023     0.6166    0.9441     0.6431   54       126     
+5    222      0.6011    0.9154     0.6217   39       92      
+6    333      0.5863    0.9278     0.6115   42       98      
+7    5432     0.5418    0.9187     0.5396   41       97      
+8    111      0.5230    0.9079     0.5288   34       81      
+9    777      0.4936    0.9017     0.4922   46       120     
+10   3141     0.4386    0.8583     0.4235   39       97      
+
+========================================
+BEST EXPERIMENT DETAILS
+========================================
+Seed: 888
+Test F1: 0.7080
+Test AUC: 0.9645
+Test Precision: 0.5762
+Test Recall: 0.9180
+
+Model saved at: models/best_fraud_model_seed_888.pth
+Saved experiment results to results/experiment_results_20251013_165200.json
+Saved experiment plots to plots\seed_experiments_20251013_165201.png
+Saved training curves to plots\training_curves_best_20251013_165549.png
+
+ANALYZING BEST MODEL
+Set random seed to: 888
+Oversampling 45794 fraud transactions...
+
+Analysis of 2199 high-confidence fraud predictions:
+Transaction type distribution:
+  TRANSFER: 692 (31.5%)
+  CASH_OUT: 1158 (52.7%)
+  CASH_IN: 349 (15.9%)
+
+Amount statistics:
+  Mean: $1,106,247.88
+  Median: $289,039.72
+  Std: $2,257,798.25
+  Range: $0.00 - $10,000,000.00
+Saved feature analysis to results/feature_analysis_20251013_165552.json
+
+ALL EXPERIMENTS COMPLETED!
+Results saved to: results/experiment_results_20251013_165200.json
+Logs saved to: logs/fraud_detection_20251013_162007.log
+Best model seed: 888
+Best test F1: 0.7080
