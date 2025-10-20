@@ -9,6 +9,7 @@ from train_utils import oversample_fraud_edges, stratified_temporal_split
 from model import GATFraudDetector
 from inference import plot_experiment_results, analyze_feature_importance
 from training import run_seed_experiments
+from comparison import compare_with_traditional_ml, plot_comparsion
 warnings.filterwarnings('ignore')
 
 # Initialize logging and experiment tracking
@@ -100,6 +101,10 @@ def main():
                 'feature_analysis': feature_analysis
             }, f, indent=2, default=default_serializer)
         logging.info(f"Saved feature analysis to {analysis_file}")
+    
+        comparison_results=compare_with_traditional_ml(train_data,val_data,test_data,best_exp['final_test_metrics'])
+        plot_comparsion(comparison_results)
+        
     
     logging.info("\nALL EXPERIMENTS COMPLETED!")
     logging.info(f"Results saved to: {results_file}")
