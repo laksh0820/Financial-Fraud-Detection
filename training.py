@@ -1,149 +1,262 @@
+# Patch solution for compatibility issue between pytorch and pytorch_geometric
+import torch.fx
+import typing
+if not hasattr(torch.fx._symbolic_trace, 'List'):
+    torch.fx._symbolic_trace.List = typing.List
+    torch.fx._symbolic_trace.Dict = typing.Dict
+    torch.fx._symbolic_trace.Tuple = typing.Tuple
+
 import torch
-import warnings
+import torch.nn.functional as F
+import tqdm
+from sklearn.metrics import f1_score
+from train_util import AddEgoIds, FocalLoss, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero, save_model, load_model
+from models import GINe, PNA, GATe, RGCN
+from torch_geometric.data import Data, HeteroData
+from torch_geometric.nn import to_hetero, summary
+from torch_geometric.utils import degree
+import wandb
 import logging
-import numpy as np
-from train_utils import oversample_fraud_edges,stratified_temporal_split,FocalLoss
-from utils import set_random_seeds
-from data_loading import print_data_stats
-from model import GATFraudDetector
-from inference import evaluate_model
-warnings.filterwarnings('ignore')
 
-def train_single_experiment(seed, config, experiment_logger, data, device):
-    """Train a single experiment with given seed and config"""
+def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config):
+    #training
+    best_val_f1 = 0
+    for epoch in range(config.epochs):
+        total_loss = total_examples = 0
+        preds = []
+        ground_truths = []
+        for batch in tqdm.tqdm(tr_loader, disable=not args.tqdm):
+            optimizer.zero_grad()
+            #select the seed edges from which the batch was created
+            if args.under_sample or args.hybrid_sample:
+                # Modified
+                seed_edges_local_inds = batch.input_id.detach().cpu() # w.r.t training data
+                batch_edge_ids = tr_loader.data.edge_attr.detach().cpu()[seed_edges_local_inds, 0]
+            else:
+                # Original Codebase
+                inds = tr_inds.detach().cpu()
+                batch_edge_inds = inds[batch.input_id.detach().cpu()]
+                batch_edge_ids = tr_loader.data.edge_attr.detach().cpu()[batch_edge_inds, 0]
+            
+            mask = torch.isin(batch.edge_attr[:, 0].detach().cpu(), batch_edge_ids)
+
+            #remove the unique edge id from the edge features, as it's no longer needed
+            batch.edge_attr = batch.edge_attr[:, 1:]
+
+            batch.to(device)
+            out = model(batch.x, batch.edge_index, batch.edge_attr)
+            pred = out[mask]
+            ground_truth = batch.y[mask]
+            preds.append(pred.argmax(dim=-1))
+            ground_truths.append(ground_truth)
+            loss = loss_fn(pred, ground_truth)
+
+            loss.backward()
+            optimizer.step()
+            
+            total_loss += float(loss) * pred.numel()
+            total_examples += pred.numel()
+            
+        pred = torch.cat(preds, dim=0).detach().cpu().numpy()
+        ground_truth = torch.cat(ground_truths, dim=0).detach().cpu().numpy()
+        f1 = f1_score(ground_truth, pred)
+
+        #evaluate
+        val_f1 = evaluate_homo(val_loader, val_inds, model, val_data, device, args)
+        te_f1 = evaluate_homo(te_loader, te_inds, model, te_data, device, args)
+
+        wandb.log({"f1/train": f1}, step=epoch)
+        wandb.log({"f1/validation": val_f1}, step=epoch)
+        wandb.log({"f1/test": te_f1}, step=epoch)
+        logging.info(f'Epoch {epoch:03d}: Train F1={f1:.4f}, Val F1={val_f1:.4f}, Test F1={te_f1:.4f}')
+
+        if epoch == 0:
+            wandb.log({"best_test_f1": te_f1}, step=epoch)
+        elif val_f1 > best_val_f1:
+            best_val_f1 = val_f1
+            wandb.log({"best_test_f1": te_f1}, step=epoch)
+            if args.save_model:
+                save_model(model, optimizer, epoch, args, data_config)
     
-    # Set random seed
-    set_random_seeds(seed)
-    
-    # Start experiment logging
-    experiment_logger.start_experiment(seed, config)
-    
-    # Use stratified temporal split
-    train_data, val_data, test_data = stratified_temporal_split(data)
+    return model
 
-    # Apply oversampling after splitting
-    train_data_oversampled = oversample_fraud_edges(train_data, target_ratio=config['target_ratio'])
-    print_data_stats(train_data_oversampled, f"Seed {seed} - After Oversampling Training Data")
-    train_data = train_data_oversampled
+def train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config):
+    #training
+    best_val_f1 = 0
+    for epoch in range(config.epochs):
+        total_loss = total_examples = 0
+        preds = []
+        ground_truths = []
+        for batch in tqdm.tqdm(tr_loader, disable=not args.tqdm):
+            optimizer.zero_grad()
+            #select the seed edges from which the batch was created
+            if args.under_sample or args.hybrid_sample:
+                # Modified
+                seed_edges_local_inds = batch['node', 'to', 'node'].input_id.detach().cpu() # w.r.t training data
+                batch_edge_ids = tr_loader.data['node', 'to', 'node'].edge_attr.detach().cpu()[seed_edges_local_inds, 0]
+            else:
+                # Original Codebase
+                inds = tr_inds.detach().cpu()
+                batch_edge_inds = inds[batch['node', 'to', 'node'].input_id.detach().cpu()]
+                batch_edge_ids = tr_loader.data['node', 'to', 'node'].edge_attr.detach().cpu()[batch_edge_inds, 0]
+            
+            mask = torch.isin(batch['node', 'to', 'node'].edge_attr[:, 0].detach().cpu(), batch_edge_ids)
+            
+            #remove the unique edge id from the edge features, as it's no longer needed
+            batch['node', 'to', 'node'].edge_attr = batch['node', 'to', 'node'].edge_attr[:, 1:]
+            batch['node', 'rev_to', 'node'].edge_attr = batch['node', 'rev_to', 'node'].edge_attr[:, 1:]
 
-    print_data_stats(train_data, f"Seed {seed} - Train Set")
-    print_data_stats(val_data, f"Seed {seed} - Validation Set")
-    print_data_stats(test_data, f"Seed {seed} - Test Set")
+            batch.to(device)
+            out = model(batch.x_dict, batch.edge_index_dict, batch.edge_attr_dict)
+            out = out[('node', 'to', 'node')]
+            pred = out[mask]
+            ground_truth = batch['node', 'to', 'node'].y[mask]
+            preds.append(pred.argmax(dim=-1))
+            ground_truths.append(batch['node', 'to', 'node'].y[mask])
+            loss = loss_fn(pred, ground_truth)
 
-    train_data = train_data.to(device)
-    val_data = val_data.to(device)
-    test_data = test_data.to(device)
-    
-    # Initialize model
-    model = GATFraudDetector(
-        num_node_features=data.num_node_features,
-        num_edge_features=data.edge_attr.size(-1),
-        **config['model_params']
-    ).to(device)
-    
-    # Calculate class weights
-    train_labels = train_data.edge_label.cpu().numpy()
-    class_counts = np.bincount(train_labels.astype(int))
-    class_weights = len(train_labels) / (2 * class_counts)
+            loss.backward()
+            optimizer.step()
 
-    # Calculate alpha for focal loss (weight for fraud class)
-    fraud_ratio = train_data.edge_label.mean().item()
-    focal_alpha = 1 - fraud_ratio  # Higher alpha for minority class
+            total_loss += float(loss) * pred.numel()
+            total_examples += pred.numel()
+            
+        pred = torch.cat(preds, dim=0).detach().cpu().numpy()
+        ground_truth = torch.cat(ground_truths, dim=0).detach().cpu().numpy()
+        f1 = f1_score(ground_truth, pred)
+        
+        #evaluate
+        val_f1 = evaluate_hetero(val_loader, val_inds, model, val_data, device, args)
+        te_f1 = evaluate_hetero(te_loader, te_inds, model, te_data, device, args)
 
-    # Use multiple loss functions
-    focal_loss = FocalLoss(alpha=focal_alpha, gamma=config['focal_gamma'])
-    pos_weight = torch.tensor([(class_weights[1] / class_weights[0]) / (config['downsampled_upweight'])]).to(device)
-    bce_loss = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        wandb.log({"f1/train": f1}, step=epoch)
+        wandb.log({"f1/validation": val_f1}, step=epoch)
+        wandb.log({"f1/test": te_f1}, step=epoch)
+        logging.info(f'Epoch {epoch:03d}: Train F1={f1:.4f}, Val F1={val_f1:.4f}, Test F1={te_f1:.4f}')
 
-    optimizer = torch.optim.AdamW(model.parameters(), 
-                                lr=config['learning_rate'], 
-                                weight_decay=config['weight_decay'])
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', patience=10, factor=0.5)
+        if epoch == 0:
+            wandb.log({"best_test_f1": te_f1}, step=epoch)
+        elif val_f1 > best_val_f1:
+            best_val_f1 = val_f1
+            wandb.log({"best_test_f1": te_f1}, step=epoch)
+            if args.save_model:
+                save_model(model, optimizer, epoch, args, data_config)
+        
+    return model
 
-    def train_epoch():
-        model.train()
-        optimizer.zero_grad()
-        
-        out = model(train_data)
-        
-        # Combine focal loss and BCE loss
-        loss1 = focal_loss(out, train_data.edge_label.float())
-        loss2 = bce_loss(out, train_data.edge_label.float())
-        loss = config['focal_weight'] * loss1 + (1 - config['focal_weight']) * loss2
-        
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
-        
-        return loss.item()
+def get_model(sample_batch, config, args):
+    n_feats = sample_batch.x.shape[1] if not isinstance(sample_batch, HeteroData) else sample_batch['node'].x.shape[1]
+    e_dim = (sample_batch.edge_attr.shape[1] - 1) if not isinstance(sample_batch, HeteroData) else (sample_batch['node', 'to', 'node'].edge_attr.shape[1] - 1)
 
-    # Training loop
-    best_val_f1 = 0  
-    patience_counter = 0
-    
-    logging.info(f"\nStarting training for seed {seed}...")
-    
-    for epoch in range(config['max_epochs']):
-        # Training
-        train_loss = train_epoch()
-        
-        # Validation
-        val_metrics = evaluate_model(model, val_data)
-        
-        # Log epoch results
-        experiment_logger.log_epoch(epoch, train_loss, val_metrics)
-        
-        # Learning rate scheduling
-        scheduler.step(val_metrics['f1'])  
-        
-        # Early stopping
-        if val_metrics['f1'] > best_val_f1:  
-            best_val_f1 = val_metrics['f1']  
-            patience_counter = 0
-            # Save best model
-            model_path = f'models/best_fraud_model_seed_{seed}.pth'
-            torch.save(model.state_dict(), model_path)
+    if args.model == "gin":
+        model = GINe(
+                num_features=n_feats, num_gnn_layers=config.n_gnn_layers, n_classes=2,
+                n_hidden=round(config.n_hidden), residual=False, edge_updates=args.emlps, edge_dim=e_dim, 
+                dropout=config.dropout, final_dropout=config.final_dropout
+                )
+    elif args.model == "gat":
+        model = GATe(
+                num_features=n_feats, num_gnn_layers=config.n_gnn_layers, n_classes=2,
+                n_hidden=round(config.n_hidden), n_heads=round(config.n_heads), 
+                edge_updates=args.emlps, edge_dim=e_dim,
+                dropout=config.dropout, final_dropout=config.final_dropout
+                )
+    elif args.model == "pna":
+        if not isinstance(sample_batch, HeteroData):
+            d = degree(sample_batch.edge_index[1], dtype=torch.long)
         else:
-            patience_counter += 1
-        
-        if epoch % 25 == 0:
-            logging.info(f"Seed {seed} - Epoch {epoch:5d} | Loss: {train_loss:10.4f} | Val F1: {val_metrics['f1']:7.4f} | "  # Changed from Val AUC to Val F1
-                  f"Val AUC: {val_metrics['auc']:6.4f} | Val AP: {val_metrics['ap']:6.4f}")  # Moved AUC to second position
-        
-        if patience_counter >= config['patience']:
-            logging.info(f"Early stopping at epoch {epoch} for seed {seed}")
-            break
+            index = torch.cat((sample_batch['node', 'to', 'node'].edge_index[1], sample_batch['node', 'rev_to', 'node'].edge_index[1]), 0)
+            d = degree(index, dtype=torch.long)
+        deg = torch.bincount(d, minlength=1)
+        model = PNA(
+            num_features=n_feats, num_gnn_layers=config.n_gnn_layers, n_classes=2,
+            n_hidden=round(config.n_hidden), edge_updates=args.emlps, edge_dim=e_dim,
+            dropout=config.dropout, deg=deg, final_dropout=config.final_dropout
+            )
+    elif config.model == "rgcn":
+        model = RGCN(
+            num_features=n_feats, edge_dim=e_dim, num_relations=8, num_gnn_layers=round(config.n_gnn_layers),
+            n_classes=2, n_hidden=round(config.n_hidden),
+            edge_update=args.emlps, dropout=config.dropout, final_dropout=config.final_dropout, n_bases=None #(maybe)
+        )
+    
+    return model
 
-    # Load best model and evaluate on test set
-    model.load_state_dict(torch.load(f'models/best_fraud_model_seed_{seed}.pth'))
-    test_metrics = evaluate_model(model, test_data)
-    
-    # End experiment logging
-    experiment_logger.end_experiment(test_metrics, f'models/best_fraud_model_seed_{seed}.pth')
-    
-    return test_metrics, model
+def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data_config):
+    #set device
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def run_seed_experiments(seeds, base_config, experiment_logger, data, device):
-    """Run experiments with multiple random seeds"""
+    #define a model config dictionary and wandb logging at the same time
+    wandb.init(
+        mode="disabled" if args.testing else "online",
+        # Set the wandb entity where your project will be logged (generally your team name).
+        entity="jklagrawal123-iit-kharagpur",
+        # Set the wandb project where this run will be logged.
+        project="Fraud Detection System",
+        # Track hyperparameters and run metadata.
+        config={
+            "epochs": args.n_epochs,
+            "batch_size": args.batch_size,
+            "model": args.model,
+            "data": args.data,
+            "num_neighbors": args.num_neighs,
+            "lr": extract_param("lr", args),
+            "n_hidden": extract_param("n_hidden", args),
+            "n_gnn_layers": extract_param("n_gnn_layers", args),
+            "loss": "ce",
+            "w_ce1": extract_param("w_ce1", args),
+            "w_ce2": extract_param("w_ce2", args),
+            "dropout": extract_param("dropout", args),
+            "final_dropout": extract_param("final_dropout", args),
+            "n_heads": extract_param("n_heads", args) if args.model == 'gat' else None
+        }
+    )
+
+    config = wandb.config
+
+    #set the transform if ego ids should be used
+    if args.ego:
+        transform = AddEgoIds()
+    else:
+        transform = None
+
+    #add the unique ids to later find the seed edges
+    add_arange_ids([tr_data, val_data, te_data])
+
+    tr_loader, val_loader, te_loader = get_loaders(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, transform, args)
+
+    #get the model
+    sample_batch = next(iter(tr_loader))
+    model = get_model(sample_batch, config, args)
+
+    if args.reverse_mp:
+        model = to_hetero(model, te_data.metadata(), aggr='mean')
     
-    logging.info(f"\nStarting experiments with {len(seeds)} different seeds...")
-    logging.info(f"Seeds to test: {seeds}")
+    if args.finetune:
+        model, optimizer = load_model(model, device, args, config, data_config)
+    else:
+        model.to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     
-    results = []
+    sample_batch.to(device)
+    sample_x = sample_batch.x if not isinstance(sample_batch, HeteroData) else sample_batch.x_dict
+    sample_edge_index = sample_batch.edge_index if not isinstance(sample_batch, HeteroData) else sample_batch.edge_index_dict
+    if isinstance(sample_batch, HeteroData):
+        sample_batch['node', 'to', 'node'].edge_attr = sample_batch['node', 'to', 'node'].edge_attr[:, 1:]
+        sample_batch['node', 'rev_to', 'node'].edge_attr = sample_batch['node', 'rev_to', 'node'].edge_attr[:, 1:]
+    else:
+        sample_batch.edge_attr = sample_batch.edge_attr[:, 1:]
+    sample_edge_attr = sample_batch.edge_attr if not isinstance(sample_batch, HeteroData) else sample_batch.edge_attr_dict
+    logging.info(f"\n{summary(model, sample_x, sample_edge_index, sample_edge_attr)}")
     
-    for i, seed in enumerate(seeds, 1):
-        logging.info("\n" + "="*80)
-        logging.info(f"EXPERIMENT {i}/{len(seeds)} - SEED: {seed}")
-        
-        try:
-            test_metrics, model = train_single_experiment(seed, base_config, experiment_logger, data, device)
-            results.append((seed, test_metrics))
-            
-            logging.info(f"Completed seed {seed}")
-            logging.info("="*80)
-            
-        except Exception as e:
-            logging.error(f"Error in experiment with seed {seed}: {str(e)}")
-            continue
+    if args.focal_loss:
+        loss_fn = FocalLoss(alpha=args.alpha, gamma=args.gamma)
+    else:
+        loss_fn = torch.nn.CrossEntropyLoss(weight=torch.FloatTensor([config.w_ce1, config.w_ce2]).to(device))
     
-    return results
+    if args.reverse_mp:
+        model = train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config)
+    else:
+        model = train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config)
+    
+    wandb.finish()

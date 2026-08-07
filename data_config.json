@@ -1,0 +1,7 @@
+{
+  "paths": {
+    "aml_data": "/home/du2/22CS30036/lakshya/Multi-GNN/AML/dataset", 
+    "model_to_load": "/home/du2/22CS30036/lakshya/Multi-GNN/AML/model",
+    "model_to_save": "/home/du2/22CS30036/lakshya/Multi-GNN/AML/model"
+  }
+}
