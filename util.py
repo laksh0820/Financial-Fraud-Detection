@@ -52,6 +52,9 @@ def create_parser():
     # parser.add_argument('--class_weights', nargs=2, type=float, default=[0.5, 0.5], help='Class weights for sampling (weight_class_0 weight_class_1)')
     parser.add_argument('--alpha', type=float, default=0.75, help='Alpha parameter for focal loss')
     parser.add_argument('--gamma', type=float, default=2.0, help='Gamma parameter for focal loss') 
+    parser.add_argument("--explain", action='store_true', help="Run GNNExplainer to explain a prediction.")
+    parser.add_argument("--explain_edge_idx", type=int, default=-1, help="Global edge index to explain. If -1, pick a fraud edge from test set.")
+    parser.add_argument("--explain_plot_dir", default="explanations", help="Directory to save explanation plots (PNG files).")
     return parser
 
 def set_seed(seed: int = 0) -> None:

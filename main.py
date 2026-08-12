@@ -27,6 +27,11 @@ def main():
     
     t2 = time.perf_counter()
     logging.info(f"Retrieved data in {t2-t1:.2f}s")
+    
+    if args.explain:
+        from explain import run_explain
+        run_explain(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data_config)
+        return
 
     if not args.inference:
         #Training
