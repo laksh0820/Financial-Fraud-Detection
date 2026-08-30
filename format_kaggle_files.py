@@ -4,15 +4,17 @@ from datetime import datetime
 from datatable import f,join,sort
 import sys
 import os
+import json
 
 n = len(sys.argv)
 
 if n == 1:
     print("No input path")
     sys.exit()
-
+    
 inPath = sys.argv[1]
-outPath = os.path.dirname(inPath) + "/formatted_transactions.csv"
+outDir = os.path.dirname(inPath)
+outPath = outDir + "/formatted_transactions.csv"
 
 raw = dt.fread(inPath, columns = dt.str32)
 
@@ -72,6 +74,33 @@ with open(outPath, 'w') as writer:
                     (i,fromId,toId,ts,amountPaidOrig,cur2, amountReceivedOrig,cur1,fmt,isl)
 
         writer.write(line)
+
+# Persist the encoding dictionaries + firstTs alongside formatted_transactions.csv
+# so downstream tools (llm_reasoning.py / mine_fewshot_candidates.py) can turn
+# the integer-encoded from_id/to_id/currency/payment-format columns and the
+# firstTs-relative Timestamp column back into human-readable values (real
+# currency names, real account identifiers, real calendar timestamps) for LLM serialization
+ 
+with open(outDir + "/currency_map.json", "w") as f_out:
+    json.dump({v: k for k, v in currency.items()}, f_out)
+ 
+with open(outDir + "/payment_format_map.json", "w") as f_out:
+    json.dump({v: k for k, v in paymentFormat.items()}, f_out)
+ 
+with open(outDir + "/account_map.json", "w") as f_out:
+    json.dump({v: k for k, v in account.items()}, f_out)
+ 
+# firstTs lets downstream code reconstruct real calendar timestamps from the
+# firstTs-relative "Timestamp" column: absolute_epoch_seconds = firstTs + row["Timestamp"]
+with open(outDir + "/format_meta.json", "w") as f_out:
+    json.dump({
+        "firstTs": firstTs,
+        "source_file": os.path.basename(inPath),
+        "n_transactions": raw.nrows,
+    }, f_out)
+ 
+print(f"Wrote currency_map.json, payment_format_map.json, account_map.json, "
+      f"format_meta.json to {outDir}")
 
 formatted = dt.fread(outPath)
 formatted = formatted[:,:,sort(3)]
