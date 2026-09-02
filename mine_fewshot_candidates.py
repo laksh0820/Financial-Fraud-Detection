@@ -194,7 +194,7 @@ def match_pattern_rows_to_edge_ids(blocks, edge_metadata_lookup):
     logging.info(
         f"Matched {n_matched} pattern-file transactions to edge ids "
         f"({n_ambiguous} were ambiguous by key, "
-        f"{n_unmatched} could not be matched at all."
+        f"{n_unmatched} could not be matched at all)"
     )
     return blocks
 
