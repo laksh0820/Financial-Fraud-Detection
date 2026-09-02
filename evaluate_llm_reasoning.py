@@ -19,6 +19,12 @@ Usage:
         --llm_provider local --llm_model Qwen/Qwen3-14B \
         --out_path llm_eval_results.csv
 
+    # Skip <think> generation entirely instead of stripping it afterward
+    # (faster/cheaper, since no reasoning tokens get generated at all):
+    python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
+        --n_samples 200 --stratify --llm_disable_thinking \
+        --out_path llm_eval_results.csv
+
     # To (expensively) run over the *entire* test set instead of a sample:
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
         --n_samples -1 --out_path llm_eval_full.csv
@@ -155,6 +161,13 @@ def main():
     parser.add_argument("--llm_provider", default="local", choices=["local"])
     parser.add_argument("--llm_model", default="Qwen/Qwen3-14B")
     parser.add_argument("--llm_max_new_tokens", type=int, default=512, help="Max tokens to generate")
+    parser.add_argument("--llm_disable_thinking", action='store_true',
+                         help="For hybrid thinking/non-thinking models (e.g. Qwen3): pass "
+                              "enable_thinking=False so the model skips the <think>...</think> "
+                              "block entirely (faster, fewer tokens). If not set, thinking stays "
+                              "on by default and the <think> block is stripped from the output "
+                              "after generation instead -- either way, llm_conclusion only ever "
+                              "sees the final answer.")
     parser.add_argument("--max_subgraph_edges", type=int, default=20)
     parser.add_argument("--n_samples", type=int, default=200,
                          help="Number of test-set edges to evaluate. Use -1 to run on "
@@ -210,7 +223,8 @@ def main():
 
     llm_client = LLMClient(
         provider=args.llm_provider, model=args.llm_model,
-        max_new_tokens=args.llm_max_new_tokens
+        max_new_tokens=args.llm_max_new_tokens,
+        enable_thinking=(False if args.llm_disable_thinking else None),
     )
 
     edge_y = te_data['node', 'to', 'node'].y if args.reverse_mp else te_data.y
