@@ -5,11 +5,12 @@ Graph Neural Network pipeline for detecting money-laundering transactions in the
 ## 1. Setup
 
 ```bash
-conda env create -f env.yml
-conda activate multignn
+python -m venv multignn --copies
+source multignn/bin/activate
+pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cu126
+pip install pyg-lib torch_scatter torch_sparse -f https://data.pyg.org/whl/torch-2.8.0+cu126.html
+pip install -r requirements.txt
 ```
-
-Requires a CUDA 11.8-capable GPU (PyTorch + PyG with CUDA are pinned in `env.yml`).
 
 ## 2. Prepare the data
 
