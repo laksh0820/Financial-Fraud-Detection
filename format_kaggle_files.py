@@ -1,6 +1,6 @@
 import numpy as np
 import datatable as dt
-from datetime import datetime
+from datetime import datetime, timezone
 from datatable import f,join,sort
 import sys
 import os
@@ -40,7 +40,7 @@ firstTs = -1
 with open(outPath, 'w') as writer:
     writer.write(header)
     for i in range(raw.nrows):
-        datetime_object = datetime.strptime(raw[i,"Timestamp"], '%Y/%m/%d %H:%M')
+        datetime_object = datetime.strptime(raw[i,"Timestamp"], '%Y/%m/%d %H:%M').replace(tzinfo=timezone.utc)
         ts = datetime_object.timestamp()
         day = datetime_object.day
         month = datetime_object.month
@@ -49,7 +49,7 @@ with open(outPath, 'w') as writer:
         minute = datetime_object.minute
 
         if firstTs == -1:
-            startTime = datetime(year, month, day)
+            startTime = datetime(year, month, day, tzinfo=timezone.utc)
             firstTs = startTime.timestamp() - 10
 
         ts = ts - firstTs

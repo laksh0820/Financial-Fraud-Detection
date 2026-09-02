@@ -225,8 +225,8 @@ def build_edge_metadata_lookup(args, data_config):
  
  
 def _fmt_timestamp(rel_seconds, first_ts=None):
-    from datetime import datetime
-    return datetime.fromtimestamp(first_ts + rel_seconds).strftime("%Y/%m/%d %H:%M")
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(first_ts + rel_seconds, tz=timezone.utc).strftime("%Y/%m/%d %H:%M")
 
 # 3. Serialization
 
