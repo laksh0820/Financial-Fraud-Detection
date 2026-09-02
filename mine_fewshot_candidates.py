@@ -160,7 +160,7 @@ def match_pattern_rows_to_edge_ids(blocks, edge_metadata_lookup):
         key = []
         key.append(row["from_bank"] + row["from_account"])
         key.append(row["to_bank"] + row["to_account"])
-        key = [row["amount_received"]]
+        key.append(float(row["amount_received"]))
         key.append(row["receiving_currency"])
         key.append(row["payment_format"])
         key.append(row["timestamp"])
