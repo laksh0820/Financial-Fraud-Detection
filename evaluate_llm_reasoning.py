@@ -16,7 +16,7 @@ Usage:
     pip install transformers accelerate torch --break-system-packages
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
         --n_samples 200 --stratify \
-        --llm_provider local --llm_model Qwen/Qwen3-14B-Instruct \
+        --llm_provider local --llm_model Qwen/Qwen3-14B \
         --out_path llm_eval_results.csv
 
     # To (expensively) run over the *entire* test set instead of a sample:
@@ -153,7 +153,7 @@ def main():
     parser = base_parser()
     parser.add_argument("--fewshot_path", default="fewshot_examples.json")
     parser.add_argument("--llm_provider", default="local", choices=["local"])
-    parser.add_argument("--llm_model", default="Qwen/Qwen3-14B-Instruct")
+    parser.add_argument("--llm_model", default="Qwen/Qwen3-14B")
     parser.add_argument("--llm_max_new_tokens", type=int, default=512, help="Max tokens to generate")
     parser.add_argument("--max_subgraph_edges", type=int, default=20)
     parser.add_argument("--n_samples", type=int, default=200,

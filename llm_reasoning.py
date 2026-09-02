@@ -2,7 +2,7 @@
 Usage:
     pip install transformers accelerate torch --break-system-packages
     python llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --explain_edge_idx 12345 --llm_provider local --llm_model Qwen/Qwen3-14B-Instruct
+        --explain_edge_idx 12345 --llm_provider local --llm_model Qwen/Qwen3-14B
 """
 
 import json
@@ -338,11 +338,13 @@ def parse_llm_response(text):
 # 5. LLM client
 
 class LLMClient:
-    def __init__(self, provider="local", model="Qwen/Qwen3-14B-Instruct", temperature=0.0, max_new_tokens=512):
+    def __init__(self, provider="local", model="Qwen/Qwen3-14B", temperature=0.0,
+                 max_new_tokens=1024, enable_thinking=None):
         self.provider = provider
         self.model = model
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
+        self.enable_thinking = enable_thinking
  
         if provider == "local":
             import torch
@@ -367,9 +369,10 @@ class LLMClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
-            input_ids = self.tokenizer.apply_chat_template(
-                messages, add_generation_prompt=True, return_tensors="pt"
-            ).to(self.hf_model.device)
+            template_kwargs = dict(add_generation_prompt=True, return_tensors="pt")
+            if self.enable_thinking is not None:
+                template_kwargs["enable_thinking"] = self.enable_thinking
+            input_ids = self.tokenizer.apply_chat_template(messages, **template_kwargs).to(self.hf_model.device)
  
             with torch.no_grad():
                 output_ids = self.hf_model.generate(
@@ -380,9 +383,28 @@ class LLMClient:
                     pad_token_id=self.tokenizer.eos_token_id,
                 )
  
-            # strip the input prompt tokens off, keep only the new text
-            new_tokens = output_ids[0][input_ids.shape[-1]:]
-            return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
+            # strip the input prompt tokens off, keep only the new tokens
+            new_tokens = output_ids[0][input_ids.shape[-1]:].tolist()
+            return self._strip_thinking(new_tokens)
+
+    def _strip_thinking(self, new_tokens):
+        """Splits off a Qwen3-style <think>...</think> reasoning block and
+        returns only the final answer text.
+        """
+        THINK_END_TOKEN_ID = 151668  # </think>, per the Qwen3 model card
+        try:
+            # rindex: last occurrence, in case the model repeats the tag
+            split_at = len(new_tokens) - new_tokens[::-1].index(THINK_END_TOKEN_ID)
+        except ValueError:
+            split_at = 0  # no </think> found -- e.g. enable_thinking=False
+
+        thinking = self.tokenizer.decode(new_tokens[:split_at], skip_special_tokens=True).strip("\n")
+        content = self.tokenizer.decode(new_tokens[split_at:], skip_special_tokens=True).strip("\n")
+
+        if thinking:
+            logging.debug(f"[local LLM thinking content, discarded]\n{thinking}")
+
+        return content
  
 
 # 6. Orchestration
@@ -449,8 +471,15 @@ def main():
                         help="Global test-set edge id (row in formatted_transactions.csv) to review")
     parser.add_argument("--fewshot_path", default="fewshot_examples.json")
     parser.add_argument("--llm_provider", default="local", choices=["local"])
-    parser.add_argument("--llm_model", default="Qwen/Qwen3-14B-Instruct")
-    parser.add_argument("--llm_max_new_tokens", type=int, default=512, help="Max tokens to generate")
+    parser.add_argument("--llm_model", default="Qwen/Qwen3-14B")
+    parser.add_argument("--llm_max_new_tokens", type=int, default=1024, help="Max tokens to generate")
+    parser.add_argument("--llm_disable_thinking", action='store_true',
+                        help="For hybrid thinking/non-thinking models (e.g. Qwen3): pass "
+                              "enable_thinking=False so the model skips the <think>...</think> "
+                              "block entirely (faster, fewer tokens). If not set, thinking stays "
+                              "on by default and the <think> block is stripped from the output "
+                              "after generation instead -- either way, llm_conclusion only ever "
+                              "sees the final answer.")
     parser.add_argument("--max_subgraph_edges", type=int, default=20)
     parser.add_argument("--out_path", default=None, help="Optional path to dump the result JSON")
     args = parser.parse_args()
@@ -493,7 +522,8 @@ def main():
 
     llm_client = LLMClient(
         provider=args.llm_provider, model=args.llm_model,
-        max_new_tokens=args.llm_max_new_tokens
+        max_new_tokens=args.llm_max_new_tokens,
+        enable_thinking=(False if args.llm_disable_thinking else None),
     )
 
     result = explain_with_llm(
