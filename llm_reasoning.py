@@ -69,7 +69,7 @@ def compute_edge_importance(model, batch, seed_pos, is_hetero):
         wrapper = WrapH(model, seed_pos).to(device)
         explainer = Explainer(
             model=wrapper,
-            algorithm=CaptumExplainer('IntegratedGradients'),
+            algorithm=CaptumExplainer('IntegratedGradients', internal_batch_size=1),
             explanation_type='model',
             node_mask_type='attributes',
             edge_mask_type='object',
@@ -409,11 +409,10 @@ class LLMClient:
 
 # 6. Orchestration
 
-def explain_with_llm(edge_idx, te_data, model, device, args, transform, is_hetero,
-                      edge_metadata_lookup, fewshot, llm_client, max_edges=20):
-    """Runs the full pipeline for one transaction: GNN predict + explain ->
-    serialize -> few-shot prompt -> LLM call -> parse. Returns a dict
-    suitable for logging/audit or appending to a results table."""
+def compute_subgraph_and_prompt(edge_idx, te_data, model, device, args, transform, is_hetero,
+                                 edge_metadata_lookup, fewshot, max_edges=20):
+    """GNN predict + explain -> serialize -> few-shot prompt. No LLM call.
+    Returns everything needed to run the LLM stage later, independently."""
     sampled = sample_predict_explain(edge_idx, te_data, model, device, args, transform, is_hetero)
 
     subgraph_text = serialize_subgraph(
@@ -425,14 +424,36 @@ def explain_with_llm(edge_idx, te_data, model, device, args, transform, is_heter
     )
 
     prompt = build_prompt(fewshot, subgraph_text, edge_idx, gnn_pred=sampled['pred'])
-    response_text = llm_client.complete(SYSTEM_PROMPT, prompt)
-    parsed = parse_llm_response(response_text)
 
     return {
         "edge_id": edge_idx,
         "gnn_pred": sampled['pred'],
         "actual_label": sampled['actual'],
         "subgraph_text": subgraph_text,
+        "prompt": prompt,
+    }
+
+
+def llm_infer_and_parse(llm_client, prompt):
+    """Just the LLM call + response parsing. No GNN/PyG involved."""
+    response_text = llm_client.complete(SYSTEM_PROMPT, prompt)
+    return parse_llm_response(response_text)
+
+
+def explain_with_llm(edge_idx, te_data, model, device, args, transform, is_hetero,
+                      edge_metadata_lookup, fewshot, llm_client, max_edges=20):
+    """Convenience wrapper chaining both stages for one transaction."""
+    pre = compute_subgraph_and_prompt(
+        edge_idx, te_data, model, device, args, transform, is_hetero,
+        edge_metadata_lookup, fewshot, max_edges=max_edges,
+    )
+    parsed = llm_infer_and_parse(llm_client, pre["prompt"])
+
+    return {
+        "edge_id": pre["edge_id"],
+        "gnn_pred": pre["gnn_pred"],
+        "actual_label": pre["actual_label"],
+        "subgraph_text": pre["subgraph_text"],
         "llm_conclusion": parsed["conclusion"],
         "llm_explanation": parsed["explanation"],
         "llm_pattern": parsed["observed_pattern"],

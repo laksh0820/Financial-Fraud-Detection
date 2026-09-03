@@ -28,8 +28,20 @@ Usage:
     # To (expensively) run over the *entire* test set instead of a sample:
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
         --n_samples -1 --out_path llm_eval_full.csv
+
+    # Just refresh the prompts cache (no LLM/GPU headroom needed for it):
+    python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
+        --n_samples 200 --stratify --skip_llm_pass \
+        --prompts_cache_path llm_prompts_cache.jsonl
+
+    # Re-run (or try a different) LLM against an already-cached GNN pass,
+    # without redoing the expensive sampling/explainer step:
+    python evaluate_llm_reasoning.py --skip_gnn_pass \
+        --prompts_cache_path llm_prompts_cache.jsonl \
+        --llm_model Qwen/Qwen3-14B --out_path llm_eval_results.csv
 """
 
+import gc
 import json
 import logging
 import random
@@ -45,7 +57,8 @@ from training import get_model
 from torch_geometric.nn import to_hetero
 
 from llm_reasoning import (
-    build_edge_metadata_lookup, explain_with_llm, LLMClient, _build_config,
+    build_edge_metadata_lookup, compute_subgraph_and_prompt, llm_infer_and_parse,
+    LLMClient, _build_config,
 )
 
 
@@ -155,6 +168,79 @@ def score_and_report(results):
     logging.info("=" * 60)
 
 
+def run_gnn_pass(eval_inds, te_data, model, device, args, transform,
+                  edge_metadata_lookup, fewshot, cache_path):
+    """Stage 1: GNN predict + explain + prompt-build for every eval edge."""
+    n_ok, n_failed = 0, 0
+    with open(cache_path, "w") as f:
+        for i, edge_idx in enumerate(eval_inds):
+            try:
+                pre = compute_subgraph_and_prompt(
+                    edge_idx, te_data, model, device, args, transform, args.reverse_mp,
+                    edge_metadata_lookup, fewshot, max_edges=args.max_subgraph_edges,
+                )
+                f.write(json.dumps(pre) + "\n")
+                f.flush()
+                n_ok += 1
+                logging.info(
+                    f"[GNN pass {i + 1}/{len(eval_inds)}] edge={edge_idx} "
+                    f"gnn_pred={pre['gnn_pred']} actual={pre['actual_label']}"
+                )
+            except RuntimeError as e:
+                # e.g. sample_predict_explain couldn't locate exactly one seed edge
+                logging.warning(f"Skipping edge {edge_idx} (sampling error): {e}")
+                n_failed += 1
+            except Exception as e:
+                # covers explainer failures, serialization issues, etc.
+                logging.warning(f"Skipping edge {edge_idx} (error): {e}")
+                n_failed += 1
+
+    logging.info(f"GNN pass done. {n_ok} cached to {cache_path}, {n_failed} failed/skipped.")
+    return n_ok, n_failed
+
+
+def run_llm_pass(cache_path, llm_client, out_path, checkpoint_every, sleep_between_calls):
+    """Stage 2: reads the cached prompts from run_gnn_pass and runs only the
+    LLM call + parsing. """
+    with open(cache_path) as f:
+        cached = [json.loads(line) for line in f if line.strip()]
+
+    results = []
+    n_failed = 0
+    for i, pre in enumerate(cached):
+        try:
+            parsed = llm_infer_and_parse(llm_client, pre["prompt"])
+            r = {
+                'edge_id': pre['edge_id'],
+                'actual_label': pre['actual_label'],
+                'gnn_pred': pre['gnn_pred'],
+                'llm_conclusion': parsed['conclusion'],
+                'llm_pred': conclusion_to_label(parsed['conclusion']),
+                'llm_pattern': parsed['observed_pattern'],
+            }
+            results.append(r)
+            logging.info(
+                f"[LLM pass {i + 1}/{len(cached)}] edge={pre['edge_id']} actual={r['actual_label']} "
+                f"gnn_pred={r['gnn_pred']} llm_conclusion={r['llm_conclusion']!r} "
+                f"llm_pred={r['llm_pred']}"
+            )
+        except Exception as e:
+            # covers LLM API errors, malformed responses, etc.
+            logging.warning(f"Skipping edge {pre['edge_id']} (LLM error): {e}")
+            n_failed += 1
+
+        if sleep_between_calls > 0:
+            time.sleep(sleep_between_calls)
+
+        if checkpoint_every and (i + 1) % checkpoint_every == 0:
+            dump_results(results, out_path)
+            logging.info(f"Checkpoint written to {out_path} ({len(results)} rows so far)")
+
+    dump_results(results, out_path)
+    logging.info(f"LLM pass done. {len(results)} scored, {n_failed} skipped/failed. Results -> {out_path}")
+    return results
+
+
 def main():
     parser = base_parser()
     parser.add_argument("--fewshot_path", default="fewshot_examples.json")
@@ -180,93 +266,101 @@ def main():
     parser.add_argument("--sleep_between_calls", type=float, default=0.0,
                          help="Seconds to sleep between LLM calls (rate-limit safety).")
     parser.add_argument("--checkpoint_every", type=int, default=20,
-                         help="Write partial results to disk every N edges.")
+                         help="Write partial results to disk every N edges (LLM pass only).")
     parser.add_argument("--out_path", default="llm_eval_results.csv")
+    parser.add_argument("--prompts_cache_path", default="llm_prompts_cache.jsonl",
+                         help="Where stage 1 (GNN pass) writes its cached prompts/predictions, "
+                              "and where stage 2 (LLM pass) reads them from.")
+    parser.add_argument("--skip_gnn_pass", action='store_true',
+                         help="Skip stage 1 and reuse an existing --prompts_cache_path "
+                              "(e.g. to re-run just the LLM pass with a different model).")
+    parser.add_argument("--skip_llm_pass", action='store_true',
+                         help="Only run stage 1 (GNN pass) and exit -- useful for producing/"
+                              "refreshing the prompts cache without needing GPU room for the LLM.")
     args = parser.parse_args()
 
     logger_setup()
     set_seed(args.seed)
     random.seed(args.seed)
 
-    with open("data_config.json") as f:
-        data_config = json.load(f)
-
-    logging.info("Loading dataset ...")
-    tr_data, val_data, te_data, tr_inds, val_inds, te_inds = get_data(args, data_config)
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    transform = AddEgoIds() if args.ego else None
-    add_arange_ids([tr_data, val_data, te_data])
-    tr_loader, val_loader, te_loader = get_loaders(
-        tr_data, val_data, te_data, tr_inds, val_inds, te_inds, transform, args
-    )
-
-    config = _build_config(args)
-    sample_batch = next(iter(tr_loader))
-    model = get_model(sample_batch, config, args)
-    if args.reverse_mp:
-        model = to_hetero(model, te_data.metadata(), aggr='mean')
-
-    logging.info("Loading model checkpoint ...")
-    ckpt_path = f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar'
-    checkpoint = torch.load(ckpt_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.to(device)
-    model.eval()
-
-    logging.info("Building raw-CSV metadata lookup ...")
-    edge_metadata_lookup = build_edge_metadata_lookup(args, data_config)
-
     with open(args.fewshot_path) as f:
         fewshot = json.load(f)
 
+    # ---------------------------------------------------------------
+    # Stage 1: GNN predict + explain + prompt-build for every eval edge.
+    # The LLM is NOT loaded during this stage, so the explainer gets the
+    # whole GPU to itself.
+    # ---------------------------------------------------------------
+    if not args.skip_gnn_pass:
+        with open("data_config.json") as f:
+            data_config = json.load(f)
+
+        logging.info("Loading dataset ...")
+        tr_data, val_data, te_data, tr_inds, val_inds, te_inds = get_data(args, data_config)
+
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        transform = AddEgoIds() if args.ego else None
+        add_arange_ids([tr_data, val_data, te_data])
+        tr_loader, val_loader, te_loader = get_loaders(
+            tr_data, val_data, te_data, tr_inds, val_inds, te_inds, transform, args
+        )
+
+        config = _build_config(args)
+        sample_batch = next(iter(tr_loader))
+        model = get_model(sample_batch, config, args)
+        if args.reverse_mp:
+            model = to_hetero(model, te_data.metadata(), aggr='mean')
+
+        logging.info("Loading model checkpoint ...")
+        ckpt_path = f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar'
+        checkpoint = torch.load(ckpt_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.to(device)
+        model.eval()
+
+        logging.info("Building raw-CSV metadata lookup ...")
+        edge_metadata_lookup = build_edge_metadata_lookup(args, data_config)
+
+        edge_y = te_data['node', 'to', 'node'].y if args.reverse_mp else te_data.y
+        eval_inds = select_eval_indices(te_inds, edge_y, args)
+
+        n_fraud = sum(edge_y[i].item() for i in eval_inds)
+        logging.info(f"Evaluating {len(eval_inds)} test edges "
+                     f"({n_fraud} fraud / {len(eval_inds) - n_fraud} non-fraud).")
+
+        run_gnn_pass(
+            eval_inds, te_data, model, device, args, transform,
+            edge_metadata_lookup, fewshot, args.prompts_cache_path,
+        )
+
+        # Explicitly drop everything GPU-resident from stage 1 before stage 2 loads the LLM
+        del model, tr_loader, val_loader, te_loader, sample_batch, checkpoint
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logging.info("Freed GNN model/loaders from GPU memory before loading the LLM.")
+    else:
+        logging.info(f"--skip_gnn_pass set: reusing existing cache at {args.prompts_cache_path}")
+
+    if args.skip_llm_pass:
+        logging.info("--skip_llm_pass set: stopping after the GNN pass.")
+        return
+
+    # ---------------------------------------------------------------
+    # Stage 2: LLM call + parsing over the cached prompts. The GNN model is
+    # gone from the GPU by this point, so the LLM gets the full card.
+    # ---------------------------------------------------------------
     llm_client = LLMClient(
         provider=args.llm_provider, model=args.llm_model,
         max_new_tokens=args.llm_max_new_tokens,
         enable_thinking=(False if args.llm_disable_thinking else None),
     )
 
-    edge_y = te_data['node', 'to', 'node'].y if args.reverse_mp else te_data.y
-    eval_inds = select_eval_indices(te_inds, edge_y, args)
-
-    n_fraud = sum(edge_y[i].item() for i in eval_inds)
-    logging.info(f"Evaluating {len(eval_inds)} test edges "
-                 f"({n_fraud} fraud / {len(eval_inds) - n_fraud} non-fraud).")
-
-    results = []
-    n_failed = 0
-    for i, edge_idx in enumerate(eval_inds):
-        try:
-            r = explain_with_llm(
-                edge_idx, te_data, model, device, args, transform, args.reverse_mp,
-                edge_metadata_lookup, fewshot, llm_client, max_edges=args.max_subgraph_edges,
-            )
-            r['llm_pred'] = conclusion_to_label(r['llm_conclusion'])
-            results.append(r)
-            logging.info(
-                f"[{i + 1}/{len(eval_inds)}] edge={edge_idx} actual={r['actual_label']} "
-                f"gnn_pred={r['gnn_pred']} llm_conclusion={r['llm_conclusion']!r} "
-                f"llm_pred={r['llm_pred']}"
-            )
-        except RuntimeError as e:
-            # e.g. sample_predict_explain couldn't locate exactly one seed edge
-            logging.warning(f"Skipping edge {edge_idx} (sampling error): {e}")
-            n_failed += 1
-        except Exception as e:
-            # covers explainer failures, LLM API errors, malformed responses, etc.
-            logging.warning(f"Skipping edge {edge_idx} (error): {e}")
-            n_failed += 1
-
-        if args.sleep_between_calls > 0:
-            time.sleep(args.sleep_between_calls)
-
-        if args.checkpoint_every and (i + 1) % args.checkpoint_every == 0:
-            dump_results(results, args.out_path)
-            logging.info(f"Checkpoint written to {args.out_path} ({len(results)} rows so far)")
-
-    dump_results(results, args.out_path)
-    logging.info(f"Done. {len(results)} scored, {n_failed} skipped/failed. Results -> {args.out_path}")
+    results = run_llm_pass(
+        args.prompts_cache_path, llm_client, args.out_path,
+        args.checkpoint_every, args.sleep_between_calls,
+    )
 
     score_and_report(results)
 
