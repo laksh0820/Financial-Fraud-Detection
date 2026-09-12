@@ -261,11 +261,7 @@ def serialize_subgraph(edge_metadata_lookup, edge_ids, target_edge_id, imp_looku
         if imp_lookup_by_id is not None:
             imp = imp_lookup_by_id.get(eid)
             if imp is not None:
-                line += (
-                    f"  importance: {imp:.3f}   "
-                    f"# GNNExplainer edge importance score; higher = more "
-                    f"influential to the GNN's own prediction for the target edge\n"
-                )
+                line += (f"  importance: {imp:.3f}   \n")
         edge_lines.append(line)
 
     node_lines = [f"- {name} (type: {ntype})" for name, ntype in nodes.items()]
@@ -353,7 +349,7 @@ class LLMClient:
             logging.info(f"Loading tokenizer for {model} ...")
             self.tokenizer = AutoTokenizer.from_pretrained(model)
  
-            load_kwargs = dict(torch_dtype=torch.float16, device_map="auto")
+            load_kwargs = dict(torch_dtype=torch.float16, device_map="auto", attn_implementation="sdpa")
             logging.info(f"Loading model weights for {model} "
                          f"(first run downloads from the Hub, this can take a while) ...")
             self.hf_model = AutoModelForCausalLM.from_pretrained(model, **load_kwargs)
@@ -361,7 +357,7 @@ class LLMClient:
  
         else:
             raise ValueError(f"Unknown provider: {provider!r}")
- 
+    
     def complete(self, system_prompt, user_prompt):
         if self.provider == "local":
             import torch
@@ -369,22 +365,22 @@ class LLMClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
-            template_kwargs = dict(add_generation_prompt=True, return_tensors="pt")
+            template_kwargs = dict(add_generation_prompt=True, return_tensors="pt", return_dict=True)
             if self.enable_thinking is not None:
                 template_kwargs["enable_thinking"] = self.enable_thinking
-            input_ids = self.tokenizer.apply_chat_template(messages, **template_kwargs).to(self.hf_model.device)
- 
+            encoded = self.tokenizer.apply_chat_template(messages, **template_kwargs).to(self.hf_model.device)
+
             with torch.no_grad():
                 output_ids = self.hf_model.generate(
-                    input_ids,
+                    **encoded,
                     max_new_tokens=self.max_new_tokens,
                     do_sample=self.temperature > 0,
                     temperature=max(self.temperature, 1e-5),
                     pad_token_id=self.tokenizer.eos_token_id,
                 )
- 
+
             # strip the input prompt tokens off, keep only the new tokens
-            new_tokens = output_ids[0][input_ids.shape[-1]:].tolist()
+            new_tokens = output_ids[0][encoded["input_ids"].shape[-1]:].tolist()
             return self._strip_thinking(new_tokens)
 
     def _strip_thinking(self, new_tokens):
@@ -530,7 +526,7 @@ def main():
 
     logging.info("Loading model checkpoint ...")
     ckpt_path = f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar'
-    checkpoint = torch.load(ckpt_path, map_location=device)
+    checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.eval()
