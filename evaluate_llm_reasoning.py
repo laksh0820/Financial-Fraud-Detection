@@ -9,13 +9,28 @@ Runs the GNN + GNNExplainer/CaptumExplainer + LLM-reasoning pipeline
 ...to give a sense of whether the LLM's reasoning step is adding value on
 top of the raw GNN classifier, or degrading it.
 
-Requires a fewshot_examples.json (see mine_fewshot_candidates.py) and a
-trained checkpoint (see main.py --save_model).
+Requires a trained GNN checkpoint (see main.py --save_model). Two prompt
+modes are supported via --prompt_mode:
+
+  - "finetuned" (default): no few-shot examples, larger subgraphs
+    (--max_subgraph_edges 20 by default), meant to be paired with a model
+    fine-tuned via finetune_llm.py on data mined by mine_finetune_data.py.
+    Pass the LoRA adapter with --adapter_path.
+  - "fewshot": the original in-context few-shot pipeline. Requires a
+    fewshot_examples.json (see mine_fewshot_candidates.py).
 
 Usage:
-    pip install transformers accelerate torch --break-system-packages
+    pip install transformers accelerate peft bitsandbytes torch --break-system-packages
+
+    # Fine-tuned pipeline
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples 200 --stratify \
+        --n_samples 200 --stratify --max_subgraph_edges 20 \
+        --llm_provider local --llm_model Qwen/Qwen3-14B --adapter_path ./llm_aml_lora \
+        --out_path llm_eval_results.csv
+
+    # Original in-context few-shot pipeline
+    python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
+        --n_samples 200 --stratify --prompt_mode fewshot \
         --llm_provider local --llm_model Qwen/Qwen3-14B \
         --out_path llm_eval_results.csv
 
@@ -169,7 +184,7 @@ def score_and_report(results):
 
 
 def run_gnn_pass(eval_inds, te_data, model, device, args, transform,
-                  edge_metadata_lookup, fewshot, cache_path):
+                  edge_metadata_lookup, fewshot, cache_path, use_fewshot=True):
     """Stage 1: GNN predict + explain + prompt-build for every eval edge."""
     n_ok, n_failed = 0, 0
     with open(cache_path, "w") as f:
@@ -178,6 +193,7 @@ def run_gnn_pass(eval_inds, te_data, model, device, args, transform,
                 pre = compute_subgraph_and_prompt(
                     edge_idx, te_data, model, device, args, transform, args.reverse_mp,
                     edge_metadata_lookup, fewshot, max_edges=args.max_subgraph_edges,
+                    use_fewshot=use_fewshot,
                 )
                 f.write(json.dumps(pre) + "\n")
                 f.flush()
@@ -243,12 +259,20 @@ def run_llm_pass(cache_path, llm_client, out_path, checkpoint_every, sleep_betwe
 
 def main():
     parser = base_parser()
-    parser.add_argument("--fewshot_path", default="fewshot_examples.json")
+    parser.add_argument("--prompt_mode", default="finetuned", choices=["finetuned", "fewshot"])
+    parser.add_argument("--fewshot_path", default="fewshot_examples.json",
+                        help="Only used when --prompt_mode fewshot.")
+    parser.add_argument("--adapter_path", default=None,
+                        help="Path to a LoRA adapter directory produced by finetune_llm.py, "
+                              "loaded on top of --llm_model. Typically used with --prompt_mode "
+                              "finetuned (the adapter and prompt style should match).")
+    parser.add_argument("--load_in_4bit", action='store_true',
+                        help="Load the LLM in 4-bit (bitsandbytes) to save GPU memory.")
     parser.add_argument("--llm_provider", default="local", choices=["local"])
     parser.add_argument("--llm_model", default="Qwen/Qwen3-14B")
     parser.add_argument("--llm_max_new_tokens", type=int, default=512, help="Max tokens to generate")
     parser.add_argument("--llm_disable_thinking", action='store_true',
-                         help="For hybrid thinking/non-thinking models (e.g. Qwen3): pass "
+                        help="For hybrid thinking/non-thinking models (e.g. Qwen3): pass "
                               "enable_thinking=False so the model skips the <think>...</think> "
                               "block entirely (faster, fewer tokens). If not set, thinking stays "
                               "on by default and the <think> block is stripped from the output "
@@ -283,8 +307,14 @@ def main():
     set_seed(args.seed)
     random.seed(args.seed)
 
-    with open(args.fewshot_path) as f:
-        fewshot = json.load(f)
+    use_fewshot = args.prompt_mode == "fewshot"
+    fewshot = None
+    if use_fewshot:
+        with open(args.fewshot_path) as f:
+            fewshot = json.load(f)
+    else:
+        logging.info("--prompt_mode finetuned: skipping fewshot_examples.json, no in-context "
+                     "examples will be added to the prompt (see llm_reasoning.build_prompt_finetuned).")
 
     # ---------------------------------------------------------------
     # Stage 1: GNN predict + explain + prompt-build for every eval edge.
@@ -332,6 +362,7 @@ def main():
         run_gnn_pass(
             eval_inds, te_data, model, device, args, transform,
             edge_metadata_lookup, fewshot, args.prompts_cache_path,
+            use_fewshot=use_fewshot,
         )
 
         # Explicitly drop everything GPU-resident from stage 1 before stage 2 loads the LLM
@@ -355,6 +386,7 @@ def main():
         provider=args.llm_provider, model=args.llm_model,
         max_new_tokens=args.llm_max_new_tokens,
         enable_thinking=(False if args.llm_disable_thinking else None),
+        adapter_path=args.adapter_path, load_in_4bit=args.load_in_4bit,
     )
 
     results = run_llm_pass(

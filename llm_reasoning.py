@@ -315,6 +315,37 @@ def build_prompt(fewshot, test_subgraph_text, target_edge_id, gnn_pred=None):
     return "\n".join(parts)
 
 
+def build_prompt_finetuned(test_subgraph_text, target_edge_id, gnn_pred=None):
+    """Prompt used both for building the fine-tuning set (mine_finetune_data.py)"""
+    task = (
+        f"Task: Given a transaction (edge) with Transaction ID {target_edge_id}, "
+        "along with its surrounding subgraph, determine whether the transaction is "
+        "suspicious, or not suspicious. Base your reasoning on the structure of the "
+        "surrounding subgraph (e.g. fan-out/fan-in, cycles, gather-scatter, stacked "
+        "chains of intermediaries) and the transaction values, currencies, and "
+        "payment formats involved. Where edges include an `importance` score, weigh "
+        "higher-importance edges more heavily in your reasoning, but treat that score "
+        "as one signal among the structural and value-based patterns you observe -- "
+        "not as ground truth.\n"
+    )
+    if gnn_pred is not None:
+        task += (
+            "\n(For reference only, not to be treated as ground truth: the upstream "
+            f"GNN classifier predicted this transaction as "
+            f"{'Suspicious' if gnn_pred == 1 else 'Not Suspicious'}.)\n"
+        )
+
+    parts = [
+        task,
+        f"\nSubgraph:\n{test_subgraph_text}\n",
+        "\nAnswer Format:\n"
+        "- Conclusion: Suspicious or Not Suspicious\n"
+        "- Explanation: (2-3 sentences reasoning)\n"
+        "- Observed Pattern: (e.g., gather-scatter)\n",
+    ]
+    return "\n".join(parts)
+
+
 def parse_llm_response(text):
     """Extracts Conclusion / Explanation / Observed Pattern from the LLM's
     reply. Falls back to None for any field it can't find, so callers can
@@ -335,12 +366,22 @@ def parse_llm_response(text):
 
 class LLMClient:
     def __init__(self, provider="local", model="Qwen/Qwen3-14B", temperature=0.0,
-                 max_new_tokens=1024, enable_thinking=None):
+                 max_new_tokens=1024, enable_thinking=None, adapter_path=None,
+                 load_in_4bit=False):
+        """
+        adapter_path: optional path to a LoRA adapter directory produced by
+            finetune_llm.py. When set, it's loaded on top of `model` and
+            merged in, so `model` should be the same base model the adapter
+            was trained from.
+        load_in_4bit: load the base model in 4-bit (bitsandbytes) to save
+            GPU memory -- useful for larger base models like Qwen3-14B.
+        """
         self.provider = provider
         self.model = model
         self.temperature = temperature
         self.max_new_tokens = max_new_tokens
         self.enable_thinking = enable_thinking
+        self.adapter_path = adapter_path
  
         if provider == "local":
             import torch
@@ -350,9 +391,24 @@ class LLMClient:
             self.tokenizer = AutoTokenizer.from_pretrained(model)
  
             load_kwargs = dict(torch_dtype=torch.float16, device_map="auto", attn_implementation="sdpa")
+            if load_in_4bit:
+                from transformers import BitsAndBytesConfig
+                load_kwargs.pop("torch_dtype", None)
+                load_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16,
+                    bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=True,
+                )
+
             logging.info(f"Loading model weights for {model} "
                          f"(first run downloads from the Hub, this can take a while) ...")
             self.hf_model = AutoModelForCausalLM.from_pretrained(model, **load_kwargs)
+
+            if adapter_path is not None:
+                from peft import PeftModel
+                logging.info(f"Loading fine-tuned LoRA adapter from {adapter_path} ...")
+                self.hf_model = PeftModel.from_pretrained(self.hf_model, adapter_path)
+                self.hf_model = self.hf_model.merge_and_unload()
+
             self.hf_model.eval()
  
         else:
@@ -406,9 +462,10 @@ class LLMClient:
 # 6. Orchestration
 
 def compute_subgraph_and_prompt(edge_idx, te_data, model, device, args, transform, is_hetero,
-                                 edge_metadata_lookup, fewshot, max_edges=20):
-    """GNN predict + explain -> serialize -> few-shot prompt. No LLM call.
-    Returns everything needed to run the LLM stage later, independently."""
+                                 edge_metadata_lookup, fewshot=None, max_edges=20, use_fewshot=True):
+    """GNN predict + explain -> serialize -> prompt. No LLM call.
+    Returns everything needed to run the LLM stage later, independently.
+    """
     sampled = sample_predict_explain(edge_idx, te_data, model, device, args, transform, is_hetero)
 
     subgraph_text = serialize_subgraph(
@@ -419,7 +476,12 @@ def compute_subgraph_and_prompt(edge_idx, te_data, model, device, args, transfor
         max_edges=max_edges,
     )
 
-    prompt = build_prompt(fewshot, subgraph_text, edge_idx, gnn_pred=sampled['pred'])
+    if use_fewshot:
+        if fewshot is None:
+            raise ValueError("fewshot examples must be provided when use_fewshot=True")
+        prompt = build_prompt(fewshot, subgraph_text, edge_idx, gnn_pred=sampled['pred'])
+    else:
+        prompt = build_prompt_finetuned(subgraph_text, edge_idx, gnn_pred=sampled['pred'])
 
     return {
         "edge_id": edge_idx,
@@ -437,11 +499,11 @@ def llm_infer_and_parse(llm_client, prompt):
 
 
 def explain_with_llm(edge_idx, te_data, model, device, args, transform, is_hetero,
-                      edge_metadata_lookup, fewshot, llm_client, max_edges=20):
+                      edge_metadata_lookup, fewshot, llm_client, max_edges=20, use_fewshot=True):
     """Convenience wrapper chaining both stages for one transaction."""
     pre = compute_subgraph_and_prompt(
         edge_idx, te_data, model, device, args, transform, is_hetero,
-        edge_metadata_lookup, fewshot, max_edges=max_edges,
+        edge_metadata_lookup, fewshot, max_edges=max_edges, use_fewshot=use_fewshot,
     )
     parsed = llm_infer_and_parse(llm_client, pre["prompt"])
 
@@ -486,7 +548,14 @@ def main():
     parser = base_parser()
     parser.add_argument("--explain_edge_idx", type=int, required=True,
                         help="Global test-set edge id (row in formatted_transactions.csv) to review")
+    parser.add_argument("--prompt_mode", default="finetuned", choices=["finetuned", "fewshot"],
+                        help="'finetuned' (default): no few-shot examples in the prompt, use "
+                             "with a model fine-tuned via finetune_llm.py. 'fewshot': the "
+                             "original in-context few-shot pipeline (needs --fewshot_path).")
     parser.add_argument("--fewshot_path", default="fewshot_examples.json")
+    parser.add_argument("--adapter_path", default=None,
+                        help="LoRA adapter directory from finetune_llm.py to load on top of --llm_model.")
+    parser.add_argument("--load_in_4bit", action='store_true')
     parser.add_argument("--llm_provider", default="local", choices=["local"])
     parser.add_argument("--llm_model", default="Qwen/Qwen3-14B")
     parser.add_argument("--llm_max_new_tokens", type=int, default=1024, help="Max tokens to generate")
@@ -534,18 +603,23 @@ def main():
     logging.info("Building raw-CSV metadata lookup ...")
     edge_metadata_lookup = build_edge_metadata_lookup(args, data_config)
 
-    with open(args.fewshot_path) as f:
-        fewshot = json.load(f)
+    use_fewshot = args.prompt_mode == "fewshot"
+    fewshot = None
+    if use_fewshot:
+        with open(args.fewshot_path) as f:
+            fewshot = json.load(f)
 
     llm_client = LLMClient(
         provider=args.llm_provider, model=args.llm_model,
         max_new_tokens=args.llm_max_new_tokens,
         enable_thinking=(False if args.llm_disable_thinking else None),
+        adapter_path=args.adapter_path, load_in_4bit=args.load_in_4bit,
     )
 
     result = explain_with_llm(
         args.explain_edge_idx, te_data, model, device, args, transform, args.reverse_mp,
         edge_metadata_lookup, fewshot, llm_client, max_edges=args.max_subgraph_edges,
+        use_fewshot=use_fewshot,
     )
 
     print(json.dumps(result, indent=2))
