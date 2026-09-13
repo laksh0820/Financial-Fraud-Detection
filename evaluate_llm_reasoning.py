@@ -254,7 +254,7 @@ def main():
                               "on by default and the <think> block is stripped from the output "
                               "after generation instead -- either way, llm_conclusion only ever "
                               "sees the final answer.")
-    parser.add_argument("--max_subgraph_edges", type=int, default=20)
+    parser.add_argument("--max_subgraph_edges", type=int, default=10)
     parser.add_argument("--n_samples", type=int, default=200,
                          help="Number of test-set edges to evaluate. Use -1 to run on "
                               "the entire te_inds (can be very slow/expensive).")
@@ -314,7 +314,7 @@ def main():
 
         logging.info("Loading model checkpoint ...")
         ckpt_path = f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar'
-        checkpoint = torch.load(ckpt_path, map_location=device)
+        checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
         model.load_state_dict(checkpoint['model_state_dict'])
         model.to(device)
         model.eval()

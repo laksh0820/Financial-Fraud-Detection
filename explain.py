@@ -477,7 +477,7 @@ def run_explain(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, da
     edge_y = te_data['node', 'to', 'node'].y if is_hetero else te_data.y
 
     checkpoint_path = f"{data_config['paths']['model_to_load']}/checkpoint_{args.unique_name}.tar"
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.eval()

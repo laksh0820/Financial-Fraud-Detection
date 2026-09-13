@@ -213,7 +213,7 @@ def main():
                         help="How many blocks to sample per pattern type (default )")
     parser.add_argument("--n_non_suspicious", type=int, default=4,
                         help="How many non-suspicious examples to auto-sample")
-    parser.add_argument("--max_subgraph_edges", type=int, default=20)
+    parser.add_argument("--max_subgraph_edges", type=int, default=10)
     parser.add_argument("--out", default="fewshot_examples.json")
     args = parser.parse_args()
 
@@ -240,7 +240,7 @@ def main():
         model = to_hetero(model, te_data.metadata(), aggr='mean')
 
     ckpt_path = f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar'
-    checkpoint = torch.load(ckpt_path, map_location=device)
+    checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device).eval()
 

@@ -313,7 +313,7 @@ def save_model(model, optimizer, epoch, args, data_config):
                 }, f'{data_config["paths"]["model_to_save"]}/checkpoint_{args.unique_name}{"" if not args.finetune else "_finetuned"}.tar')
     
 def load_model(model, device, args, config, data_config):
-    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar')
+    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar', weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)

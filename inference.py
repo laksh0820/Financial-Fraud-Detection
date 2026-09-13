@@ -68,7 +68,7 @@ def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data
     #     args.unique_name = name
 
     logging.info("=> loading model checkpoint")
-    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar')
+    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar', weights_only=False)
     start_epoch = checkpoint['epoch']
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
