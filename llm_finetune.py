@@ -58,11 +58,13 @@ class PromptCompletionDataset(Dataset):
             {"role": "user", "content": ex["prompt"]},
         ]
 
-        template_kwargs = dict(add_generation_prompt=True, tokenize=True)
+        template_kwargs = dict(add_generation_prompt=True, tokenize=False)
         if self.enable_thinking is not None:
             template_kwargs["enable_thinking"] = self.enable_thinking
 
-        prompt_ids = self.tokenizer.apply_chat_template(prompt_messages, **template_kwargs)
+        rendered_prompt = self.tokenizer.apply_chat_template(prompt_messages, **template_kwargs)
+        prompt_ids = self.tokenizer(rendered_prompt, add_special_tokens=False)["input_ids"]
+        
         completion_ids = self.tokenizer(
             ex["completion"] + self.tokenizer.eos_token,
             add_special_tokens=False,
