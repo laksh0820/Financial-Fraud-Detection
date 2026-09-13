@@ -40,7 +40,7 @@ def compute_edge_importance(model, batch, seed_pos, is_hetero):
             def forward(self, x, edge_index, edge_attr, **kw):
                 return self.m(x, edge_index, edge_attr)[self.pos:self.pos + 1]
 
-        wrapper = Wrap(model, seed_pos).to(device)
+        wrapper = Wrap(model, seed_pos).to(device).eval()
         explainer = Explainer(
             model=wrapper,
             algorithm=GNNExplainer(epochs=100),
@@ -49,7 +49,10 @@ def compute_edge_importance(model, batch, seed_pos, is_hetero):
             edge_mask_type='object',
             model_config=dict(mode='multiclass_classification', task_level='graph', return_type='raw'),
         )
-        explanation = explainer(x=batch.x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+        try:
+            explanation = explainer(x=batch.x, edge_index=batch.edge_index, edge_attr=batch.edge_attr)
+        finally:
+            model.eval()
         edge_index_np = batch.edge_index.detach().cpu().numpy()
         edge_imp_np = explanation.edge_mask.detach().cpu().numpy()
 
@@ -66,7 +69,7 @@ def compute_edge_importance(model, batch, seed_pos, is_hetero):
                 out = self.m(x, edge_index, edge_attr)[to_rel]
                 return out[self.pos:self.pos + 1]
 
-        wrapper = WrapH(model, seed_pos).to(device)
+        wrapper = WrapH(model, seed_pos).to(device).eval()
         explainer = Explainer(
             model=wrapper,
             algorithm=CaptumExplainer('IntegratedGradients', internal_batch_size=1),
@@ -75,7 +78,10 @@ def compute_edge_importance(model, batch, seed_pos, is_hetero):
             edge_mask_type='object',
             model_config=dict(mode='multiclass_classification', task_level='graph', return_type='raw'),
         )
-        explanation = explainer(x=batch.x_dict, edge_index=batch.edge_index_dict, edge_attr=batch.edge_attr_dict)
+        try:
+            explanation = explainer(x=batch.x_dict, edge_index=batch.edge_index_dict, edge_attr=batch.edge_attr_dict)
+        finally:
+            model.eval()
         edge_index_np = batch[to_rel].edge_index.detach().cpu().numpy()
         edge_imp_np = explanation.edge_mask_dict[to_rel].detach().cpu().numpy()
 

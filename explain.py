@@ -243,7 +243,7 @@ def _explain_and_plot(model, sample, edge_idx, args, case_key, case_label):
             out = self.base_model(x, edge_index, edge_attr)
             return out[self.seed_pos:self.seed_pos + 1]
 
-    wrapper = ExplainWrapper(model, seed_pos).to(device)
+    wrapper = ExplainWrapper(model, seed_pos).to(device).eval()
 
     explainer = Explainer(
         model=wrapper,
@@ -257,12 +257,14 @@ def _explain_and_plot(model, sample, edge_idx, args, case_key, case_label):
             return_type='raw',
         ),
     )
-
-    explanation = explainer(
-        x=batch.x,
-        edge_index=batch.edge_index,
-        edge_attr=batch.edge_attr,
-    )
+    try:
+        explanation = explainer(
+            x=batch.x,
+            edge_index=batch.edge_index,
+            edge_attr=batch.edge_attr,
+        )
+    finally:
+        model.eval()
 
     logging.info(f"[{case_key}] Edge mask:")
     logging.info(explanation.edge_mask.detach().cpu().numpy())
@@ -351,7 +353,7 @@ def _explain_and_plot_hetero(model, sample, edge_idx, args, case_key, case_label
             out_to = out[to_rel]
             return out_to[self.seed_pos:self.seed_pos + 1]
 
-    wrapper = ExplainWrapperHetero(model, seed_pos).to(device)
+    wrapper = ExplainWrapperHetero(model, seed_pos).to(device).eval()
 
     explainer = Explainer(
         model=wrapper,
@@ -365,12 +367,15 @@ def _explain_and_plot_hetero(model, sample, edge_idx, args, case_key, case_label
             return_type='raw',
         ),
     )
-
-    explanation = explainer(
-        x=batch.x_dict,
-        edge_index=batch.edge_index_dict,
-        edge_attr=batch.edge_attr_dict,
-    )
+    
+    try:
+        explanation = explainer(
+            x=batch.x_dict,
+            edge_index=batch.edge_index_dict,
+            edge_attr=batch.edge_attr_dict,
+        )
+    finally:
+        model.eval()
 
     logging.info(f"[{case_key}] Node feature mask (per node type):")
     for ntype, node_mask in explanation.node_mask_dict.items():
