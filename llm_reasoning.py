@@ -334,12 +334,12 @@ def build_prompt_finetuned(test_subgraph_text, target_edge_id, gnn_pred=None):
         "as one signal among the structural and value-based patterns you observe -- "
         "not as ground truth.\n"
     )
-    # if gnn_pred is not None:
-    #     task += (
-    #         "\n(For reference only, not to be treated as ground truth: the upstream "
-    #         f"GNN classifier predicted this transaction as "
-    #         f"{'Suspicious' if gnn_pred == 1 else 'Not Suspicious'}.)\n"
-    #     )
+    if gnn_pred is not None:
+        task += (
+            "\n(For reference only, not to be treated as ground truth: the upstream "
+            f"GNN classifier predicted this transaction as "
+            f"{'Suspicious' if gnn_pred == 1 else 'Not Suspicious'}.)\n"
+        )
 
     parts = [
         task,
