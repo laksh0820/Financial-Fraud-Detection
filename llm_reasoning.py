@@ -347,7 +347,7 @@ def build_prompt_finetuned(test_subgraph_text, target_edge_id, gnn_pred=None):
         "\nAnswer Format:\n"
         "- Conclusion: Suspicious or Not Suspicious\n"
         "- Explanation: (2-3 sentences reasoning)\n"
-        "- Observed Pattern: (e.g., gather-scatter)\n",
+        "- Observed Pattern: (one out of the following: \{fan-out, fan-in, gather-scatter, scatter-gather, simple cycle, random, bipartite, stack, layering, routine\})\n",
     ]
     return "\n".join(parts)
 
