@@ -24,29 +24,29 @@ Usage:
 
     # Fine-tuned pipeline
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples 200 --stratify --max_subgraph_edges 20 \
+        --n_samples 200 --stratify --patterns_file HI-Small_Patterns.txt --max_subgraph_edges 20 \
         --llm_provider local --llm_model Qwen/Qwen3-14B --adapter_path ./llm_aml_lora \
         --out_path llm_eval_results.csv
 
     # Original in-context few-shot pipeline
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples 200 --stratify --prompt_mode fewshot \
+        --n_samples 200 --stratify --patterns_file HI-Small_Patterns.txt --prompt_mode fewshot \
         --llm_provider local --llm_model Qwen/Qwen3-14B \
         --out_path llm_eval_results.csv
 
     # Skip <think> generation entirely instead of stripping it afterward
     # (faster/cheaper, since no reasoning tokens get generated at all):
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples 200 --stratify --llm_disable_thinking \
+        --n_samples 200 --stratify --patterns_file HI-Small_Patterns.txt --llm_disable_thinking \
         --out_path llm_eval_results.csv
 
     # To (expensively) run over the *entire* test set instead of a sample:
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples -1 --out_path llm_eval_full.csv
+        --n_samples -1 --patterns_file HI-Small_Patterns.txt --out_path llm_eval_full.csv
 
     # Just refresh the prompts cache (no LLM/GPU headroom needed for it):
     python evaluate_llm_reasoning.py --data Small_HI --model gin --unique_name run1 \
-        --n_samples 200 --stratify --skip_llm_pass \
+        --n_samples 200 --stratify --patterns_file HI-Small_Patterns.txt --skip_llm_pass \
         --prompts_cache_path llm_prompts_cache.jsonl
 
     # Re-run (or try a different) LLM against an already-cached GNN pass,
@@ -61,6 +61,7 @@ import json
 import logging
 import random
 import time
+from collections import Counter
 
 import torch
 from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
@@ -74,6 +75,11 @@ from torch_geometric.nn import to_hetero
 from llm_reasoning import (
     build_edge_metadata_lookup, compute_subgraph_and_prompt, llm_infer_and_parse,
     LLMClient, _build_config,
+)
+from mine_fewshot_candidates import parse_patterns_file, match_pattern_rows_to_edge_ids
+from mine_finetune_data import (
+    build_pattern_block_index, build_pattern_by_edge_id, pick_pattern_edges,
+    resolve_pattern, FALLBACK_PATTERN,
 )
 
 
@@ -92,18 +98,32 @@ def conclusion_to_label(conclusion):
     return None
 
 
-def select_eval_indices(te_inds, edge_y, args):
+def select_eval_indices(te_inds, edge_y, args, pattern_block_by_edge_id=None):
     all_inds = te_inds.tolist()
 
     if args.n_samples == -1:
         eval_inds = all_inds
     elif args.stratify:
+        index = pattern_block_by_edge_id or {}
         fraud = [i for i in all_inds if edge_y[i].item() == 1]
         non_fraud = [i for i in all_inds if edge_y[i].item() == 0]
-        random.shuffle(fraud)
+        # fraud edges that are in the pattern file (restricted to te_inds) come first,
+        # spread over patterns and over blocks within each pattern
+        fraud_in_pattern = [i for i in fraud if i in index]
+        fraud_other = [i for i in fraud if i not in index]
+        random.shuffle(fraud_other)
         random.shuffle(non_fraud)
         half = args.n_samples // 2
-        eval_inds = fraud[:half] + non_fraud[:args.n_samples - half]
+        fraud_sel = pick_pattern_edges(fraud_in_pattern, index, half)
+        n_from_pattern = len(fraud_sel)
+        n_extra = min(max(0, half - n_from_pattern), len(fraud_other))
+        fraud_sel += fraud_other[:n_extra]  # only if the pattern-file quota fell short
+        logging.info(f"Fraud quota {half}: {n_from_pattern} from the pattern file "
+                     f"({len(fraud_in_pattern)} available in te_inds) covering "
+                     f"{len({index[i][1] for i in fraud_sel[:n_from_pattern]})} distinct blocks, "
+                     f"{n_extra} extra fraud edges from te_inds. "
+                     f"Per pattern: {dict(Counter(index[i][0] for i in fraud_sel[:n_from_pattern]))}")
+        eval_inds = fraud_sel + non_fraud[:args.n_samples - half]
         random.shuffle(eval_inds)
     else:
         eval_inds = list(all_inds)
@@ -122,11 +142,42 @@ def dump_results(results, out_path):
             'gnn_pred': r['gnn_pred'],
             'llm_conclusion': r['llm_conclusion'],
             'llm_pred': r['llm_pred'],
+            'actual_pattern': r['actual_pattern'],
             'llm_pattern': r['llm_pattern'],
         }
         for r in results
     ])
     df.to_csv(out_path, index=False)
+
+
+def report_pattern_accuracy(results):
+    rows = [r for r in results if r.get('actual_pattern') is not None]
+    if not rows:
+        logging.info("\nPattern identification: no actual-pattern info in results (old prompts cache?) -- skipped.")
+        return
+    scored = [r for r in rows if r['actual_pattern'] != FALLBACK_PATTERN]
+    n_fb = len(rows) - len(scored)
+    if not scored:
+        logging.info("\nPattern identification: no edges with a real pattern label.")
+        return
+
+    def acc(rs):
+        return sum(r['llm_pattern'] == r['actual_pattern'] for r in rs) / len(rs) if rs else float('nan')
+
+    fraud = [r for r in scored if r['actual_label'] == 1]
+    logging.info(f"\nPattern identification (LLM Observed Pattern == actual pattern; "
+                 f"{n_fb} fraud edges with only the generic '{FALLBACK_PATTERN}' label excluded):")
+    logging.info(f"  Overall, all {len(scored)} edges (incl. routine) : {acc(scored):.4f}")
+    logging.info(f"  Overall, {len(fraud)} fraud edges only          : {acc(fraud):.4f}")
+    logging.info(f"  {'actual pattern':<16}{'n':>5}{'correct':>9}{'accuracy':>10}   most common wrong predictions")
+    by_pattern = {}
+    for r in scored:
+        by_pattern.setdefault(r['actual_pattern'], []).append(r)
+    for pat, rs in sorted(by_pattern.items(), key=lambda kv: -len(kv[1])):
+        n_ok = sum(r['llm_pattern'] == pat for r in rs)
+        wrong = Counter(r['llm_pattern'] or '<missing>' for r in rs if r['llm_pattern'] != pat).most_common(2)
+        logging.info(f"  {pat:<16}{len(rs):>5}{n_ok:>9}{n_ok / len(rs):>10.3f}   "
+                     f"{', '.join(f'{k} x{v}' for k, v in wrong) or '-'}")
 
 
 def score_and_report(results):
@@ -180,12 +231,16 @@ def score_and_report(results):
     else:
         logging.info("No parseable LLM conclusions -- can't compute LLM F1.")
 
+    report_pattern_accuracy(results)
     logging.info("=" * 60)
 
 
 def run_gnn_pass(eval_inds, te_data, model, device, args, transform,
-                  edge_metadata_lookup, fewshot, cache_path, use_fewshot=True):
-    """Stage 1: GNN predict + explain + prompt-build for every eval edge."""
+                  edge_metadata_lookup, fewshot, cache_path, use_fewshot=True,
+                  pattern_by_edge_id=None):
+    """Stage 1: GNN predict + explain + prompt-build for every eval edge.
+    Cache record: {edge_id, gnn_pred, actual_label, pattern, subgraph_text, prompt}."""
+    pattern_by_edge_id = pattern_by_edge_id or {}
     n_ok, n_failed = 0, 0
     with open(cache_path, "w") as f:
         for i, edge_idx in enumerate(eval_inds):
@@ -195,12 +250,21 @@ def run_gnn_pass(eval_inds, te_data, model, device, args, transform,
                     edge_metadata_lookup, fewshot, max_edges=args.max_subgraph_edges,
                     use_fewshot=use_fewshot,
                 )
-                f.write(json.dumps(pre) + "\n")
+                pattern, _, _ = resolve_pattern(pre['actual_label'], edge_idx, pattern_by_edge_id)
+                record = {
+                    "edge_id": pre["edge_id"],
+                    "gnn_pred": pre["gnn_pred"],
+                    "actual_label": pre["actual_label"],
+                    "pattern": pattern,
+                    "subgraph_text": pre["subgraph_text"],
+                    "prompt": pre["prompt"],
+                }
+                f.write(json.dumps(record) + "\n")
                 f.flush()
                 n_ok += 1
                 logging.info(
                     f"[GNN pass {i + 1}/{len(eval_inds)}] edge={edge_idx} "
-                    f"gnn_pred={pre['gnn_pred']} actual={pre['actual_label']}"
+                    f"gnn_pred={pre['gnn_pred']} actual={pre['actual_label']} pattern={pattern}"
                 )
             except RuntimeError as e:
                 # e.g. sample_predict_explain couldn't locate exactly one seed edge
@@ -232,13 +296,14 @@ def run_llm_pass(cache_path, llm_client, out_path, checkpoint_every, sleep_betwe
                 'gnn_pred': pre['gnn_pred'],
                 'llm_conclusion': parsed['conclusion'],
                 'llm_pred': conclusion_to_label(parsed['conclusion']),
+                'actual_pattern': pre.get('pattern'),
                 'llm_pattern': parsed['observed_pattern'],
             }
             results.append(r)
             logging.info(
                 f"[LLM pass {i + 1}/{len(cached)}] edge={pre['edge_id']} actual={r['actual_label']} "
                 f"gnn_pred={r['gnn_pred']} llm_conclusion={r['llm_conclusion']!r} "
-                f"llm_pred={r['llm_pred']}"
+                f"llm_pred={r['llm_pred']} pattern(actual/llm)={r['actual_pattern']}/{r['llm_pattern']}"
             )
         except Exception as e:
             # covers LLM API errors, malformed responses, etc.
@@ -259,6 +324,9 @@ def run_llm_pass(cache_path, llm_client, out_path, checkpoint_every, sleep_betwe
 
 def main():
     parser = base_parser()
+    parser.add_argument("--patterns_file", default=None,
+                        help="Raw IBM AML *_Patterns.txt. Required when the GNN pass runs: used to prefer "
+                             "pattern-file fraud edges when sampling and to label each edge's actual pattern.")
     parser.add_argument("--prompt_mode", default="finetuned", choices=["finetuned", "fewshot"])
     parser.add_argument("--fewshot_path", default="fewshot_examples.json",
                         help="Only used when --prompt_mode fewshot.")
@@ -302,6 +370,8 @@ def main():
                          help="Only run stage 1 (GNN pass) and exit -- useful for producing/"
                               "refreshing the prompts cache without needing GPU room for the LLM.")
     args = parser.parse_args()
+    if not args.skip_gnn_pass and not args.patterns_file:
+        parser.error("--patterns_file is required unless --skip_gnn_pass is set")
 
     logger_setup()
     set_seed(args.seed)
@@ -352,8 +422,14 @@ def main():
         logging.info("Building raw-CSV metadata lookup ...")
         edge_metadata_lookup = build_edge_metadata_lookup(args, data_config)
 
+        logging.info("Parsing + matching laundering-attempt patterns ...")
+        blocks = parse_patterns_file(args.patterns_file)
+        blocks = match_pattern_rows_to_edge_ids(blocks, edge_metadata_lookup)
+        pattern_block_by_edge_id = build_pattern_block_index(blocks)
+        pattern_by_edge_id = build_pattern_by_edge_id(blocks)
+
         edge_y = te_data['node', 'to', 'node'].y if args.reverse_mp else te_data.y
-        eval_inds = select_eval_indices(te_inds, edge_y, args)
+        eval_inds = select_eval_indices(te_inds, edge_y, args, pattern_block_by_edge_id)
 
         n_fraud = sum(edge_y[i].item() for i in eval_inds)
         logging.info(f"Evaluating {len(eval_inds)} test edges "
@@ -362,7 +438,7 @@ def main():
         run_gnn_pass(
             eval_inds, te_data, model, device, args, transform,
             edge_metadata_lookup, fewshot, args.prompts_cache_path,
-            use_fewshot=use_fewshot,
+            use_fewshot=use_fewshot, pattern_by_edge_id=pattern_by_edge_id,
         )
 
         # Explicitly drop everything GPU-resident from stage 1 before stage 2 loads the LLM

@@ -20,6 +20,7 @@ Usage:
 import json
 import logging
 import random
+from collections import Counter, defaultdict, deque
 
 import torch
 
@@ -59,17 +60,88 @@ def build_completion(actual_label, pattern, explanation):
     )
 
 
-def select_train_indices(tr_inds, edge_y, args):
+def build_pattern_block_index(blocks):
+    """{global edge id: (pattern name, block id)} for every matched row of every
+    block."""
+    index = {}
+    for block_id, block in enumerate(blocks):
+        for row in block["rows"]:
+            eid = row.get("edge_id")
+            if eid is not None:
+                index[eid] = (block["pattern"], block_id)
+    return index
+
+
+def build_pattern_by_edge_id(blocks):
+    """{global edge id: pattern name} for every matched row of every block."""
+    return {eid: pat for eid, (pat, _) in build_pattern_block_index(blocks).items()}
+
+
+def pick_pattern_edges(candidates, pattern_block_by_edge_id, quota):
+    by_pattern = defaultdict(lambda: defaultdict(list))
+    for e in candidates:
+        pattern, block_id = pattern_block_by_edge_id[e]
+        by_pattern[pattern][block_id].append(e)
+
+    queues = {}
+    for pattern, blocks in by_pattern.items():
+        block_lists = list(blocks.values())
+        for b in block_lists:
+            random.shuffle(b)
+        random.shuffle(block_lists)
+        queues[pattern] = deque(block_lists)
+    active = list(queues)
+    random.shuffle(active)
+
+    picked = []
+    while active and len(picked) < quota:
+        for pattern in list(active):
+            if len(picked) >= quota:
+                break
+            q = queues[pattern]
+            block = q.popleft()
+            picked.append(block.pop())
+            if block:
+                q.append(block)  # back of the line: other blocks go first
+            if not q:
+                active.remove(pattern)
+    return picked
+
+
+def resolve_pattern(actual_label, edge_id, pattern_by_edge_id):
+    if actual_label == 1:
+        pattern = pattern_by_edge_id.get(edge_id)
+        if pattern is not None:
+            return pattern, PATTERN_EXPLANATIONS.get(pattern, FALLBACK_SUSPICIOUS_EXPLANATION), False
+        return FALLBACK_PATTERN, FALLBACK_SUSPICIOUS_EXPLANATION, True
+    return "routine", NON_SUSPICIOUS_EXPLANATION_TEMPLATE, False
+
+
+def select_train_indices(tr_inds, edge_y, args, pattern_block_by_edge_id=None):
     all_inds = tr_inds.tolist()
     if args.n_samples == -1:
         mine_inds = all_inds
     elif args.stratify:
+        index = pattern_block_by_edge_id or {}
         fraud = [i for i in all_inds if edge_y[i].item() == 1]
         non_fraud = [i for i in all_inds if edge_y[i].item() == 0]
-        random.shuffle(fraud)
+        # fraud edges that are in the pattern file (restricted to tr_inds) come first,
+        # spread over patterns and over blocks within each pattern
+        fraud_in_pattern = [i for i in fraud if i in index]
+        fraud_other = [i for i in fraud if i not in index]
+        random.shuffle(fraud_other)
         random.shuffle(non_fraud)
         half = args.n_samples // 2
-        mine_inds = fraud[:half] + non_fraud[:args.n_samples - half]
+        fraud_sel = pick_pattern_edges(fraud_in_pattern, index, half)
+        n_from_pattern = len(fraud_sel)
+        n_extra = min(max(0, half - n_from_pattern), len(fraud_other))
+        fraud_sel += fraud_other[:n_extra]  # only if the pattern-file quota fell short
+        logging.info(f"Fraud quota {half}: {n_from_pattern} from the pattern file "
+                     f"({len(fraud_in_pattern)} available in tr_inds) covering "
+                     f"{len({index[i][1] for i in fraud_sel[:n_from_pattern]})} distinct blocks, "
+                     f"{n_extra} extra fraud edges from tr_inds. "
+                     f"Per pattern: {dict(Counter(index[i][0] for i in fraud_sel[:n_from_pattern]))}")
+        mine_inds = fraud_sel + non_fraud[:args.n_samples - half]
         random.shuffle(mine_inds)
     else:
         mine_inds = list(all_inds)
@@ -128,15 +200,11 @@ def main():
     blocks = parse_patterns_file(args.patterns_file)
     blocks = match_pattern_rows_to_edge_ids(blocks, edge_metadata_lookup)
     
-    pattern_by_edge_id = {}
-    for block in blocks:
-        for row in block["rows"]:
-            eid = row.get("edge_id")
-            if eid is not None:
-                pattern_by_edge_id[eid] = block["pattern"]
+    pattern_block_by_edge_id = build_pattern_block_index(blocks)
+    pattern_by_edge_id = build_pattern_by_edge_id(blocks)
 
     edge_y = te_data['node', 'to', 'node'].y if args.reverse_mp else te_data.y
-    mine_inds = select_train_indices(tr_inds, edge_y, args)
+    mine_inds = select_train_indices(tr_inds, edge_y, args, pattern_block_by_edge_id)
 
     n_fraud = sum(edge_y[i].item() for i in mine_inds)
     logging.info(f"Mining {len(mine_inds)} training edges "
@@ -156,17 +224,8 @@ def main():
                 prompt = build_prompt_finetuned(subgraph_text, edge_idx, gnn_pred=sampled['pred'])
 
                 actual_label = sampled['actual']
-                if actual_label == 1:
-                    pattern = pattern_by_edge_id.get(edge_idx)
-                    if pattern is not None:
-                        explanation = PATTERN_EXPLANATIONS.get(pattern, FALLBACK_SUSPICIOUS_EXPLANATION)
-                    else:
-                        pattern = FALLBACK_PATTERN
-                        explanation = FALLBACK_SUSPICIOUS_EXPLANATION
-                        n_fallback += 1
-                else:
-                    pattern = "routine"
-                    explanation = NON_SUSPICIOUS_EXPLANATION_TEMPLATE
+                pattern, explanation, used_fallback = resolve_pattern(actual_label, edge_idx, pattern_by_edge_id)
+                n_fallback += int(used_fallback)
 
                 completion = build_completion(actual_label, pattern, explanation)
 
