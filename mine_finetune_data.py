@@ -48,14 +48,13 @@ FALLBACK_SUSPICIOUS_EXPLANATION = (
 )
 
 
-def build_completion(actual_label, pattern, explanation):
+def build_completion(actual_label, pattern):
     """The target assistant turn the LLM is fine-tuned to produce, in the
     exact format `parse_llm_response` (llm_reasoning.py) expects to parse
     back out at eval time."""
     conclusion = "Suspicious" if actual_label == 1 else "Not Suspicious"
     return (
         f"- Conclusion: {conclusion}\n"
-        f"- Explanation: {explanation}\n"
         f"- Observed Pattern: {pattern}\n"
     )
 
@@ -224,10 +223,10 @@ def main():
                 prompt = build_prompt_finetuned(subgraph_text, edge_idx, gnn_pred=sampled['pred'])
 
                 actual_label = sampled['actual']
-                pattern, explanation, used_fallback = resolve_pattern(actual_label, edge_idx, pattern_by_edge_id)
+                pattern, _, used_fallback = resolve_pattern(actual_label, edge_idx, pattern_by_edge_id)
                 n_fallback += int(used_fallback)
 
-                completion = build_completion(actual_label, pattern, explanation)
+                completion = build_completion(actual_label, pattern)
 
                 f_out.write(json.dumps({
                     "edge_id": edge_idx,
@@ -254,7 +253,7 @@ def main():
 
     logging.info(
         f"Done. {n_ok} examples written to {args.out} "
-        f"({n_fallback} suspicious edges used the generic fallback explanation because they "
+        f"({n_fallback} suspicious edges used the generic fallback pattern label because they "
         f"didn't match a block in {args.patterns_file}), {n_failed} failed/skipped."
     )
 

@@ -315,7 +315,6 @@ def build_prompt(fewshot, test_subgraph_text, target_edge_id, gnn_pred=None):
     parts.append(
         "\nAnswer Format:\n"
         "- Conclusion: Suspicious or Not Suspicious\n"
-        "- Explanation: (2-3 sentences reasoning)\n"
         "- Observed Pattern: (e.g., gather-scatter)\n"
     )
     return "\n".join(parts)
@@ -346,14 +345,13 @@ def build_prompt_finetuned(test_subgraph_text, target_edge_id, gnn_pred=None):
         f"\nSubgraph:\n{test_subgraph_text}\n",
         "\nAnswer Format:\n"
         "- Conclusion: Suspicious or Not Suspicious\n"
-        "- Explanation: (2-3 sentences reasoning)\n"
-        "- Observed Pattern: (one out of the following: \{fan-out, fan-in, gather-scatter, scatter-gather, simple cycle, random, bipartite, stack, layering, routine\})\n",
+        "- Observed Pattern: (one out of the following: {fan-out, fan-in, gather-scatter, scatter-gather, simple cycle, random, bipartite, stack, layering, routine})\n",
     ]
     return "\n".join(parts)
 
 
 def parse_llm_response(text):
-    """Extracts Conclusion / Explanation / Observed Pattern from the LLM's
+    """Extracts Conclusion / Observed Pattern from the LLM's
     reply. Falls back to None for any field it can't find, so callers can
     detect and log malformed responses instead of silently mis-parsing."""
     def grab(field):
@@ -362,7 +360,6 @@ def parse_llm_response(text):
 
     return {
         "conclusion": grab("Conclusion"),
-        "explanation": grab("Explanation"),
         "observed_pattern": grab("Observed Pattern"),
         "raw": text,
     }
@@ -519,7 +516,6 @@ def explain_with_llm(edge_idx, te_data, model, device, args, transform, is_heter
         "actual_label": pre["actual_label"],
         "subgraph_text": pre["subgraph_text"],
         "llm_conclusion": parsed["conclusion"],
-        "llm_explanation": parsed["explanation"],
         "llm_pattern": parsed["observed_pattern"],
         "llm_raw": parsed["raw"],
     }
