@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import sys
+from collections import defaultdict
 
 import pandas as pd
 import torch
@@ -225,6 +226,7 @@ def build_edge_metadata_lookup(args, data_config):
             "currency": currency_map.get(cur_id, str(cur_id)),
             "payment_format": payment_map.get(fmt_id, str(fmt_id)),
             "timestamp": _fmt_timestamp(int(row['Timestamp']), first_ts),
+            "ts": int(row['Timestamp']),  # seconds since the first transaction (for ordering / relative time)
             "label": int(row['Is Laundering']),
         }
     return lookup
@@ -250,17 +252,24 @@ def serialize_subgraph(edge_metadata_lookup, edge_ids, target_edge_id, imp_looku
         keep.add(target_edge_id)
         edge_ids = [e for e in edge_ids if e in keep]
 
-    nodes = {}
+    edge_ids = [e for e in edge_ids if e in edge_metadata_lookup]
+    if target_edge_id not in edge_ids:
+        raise ValueError(f"target edge {target_edge_id} missing from metadata lookup")
+    edge_ids.sort(key=lambda e: (edge_metadata_lookup[e]["ts"], e))  # chronological
+
+    alias, senders, receivers = {}, defaultdict(set), defaultdict(set)
+    for eid in edge_ids:
+        m = edge_metadata_lookup[eid]
+        for acct in (m["src"], m["dst"]):
+            alias.setdefault(acct, f"A{len(alias) + 1}")
+        receivers[m["src"]].add(m["dst"])
+        senders[m["dst"]].add(m["src"])
+
     edge_lines = []
     for eid in edge_ids:
-        meta = edge_metadata_lookup.get(eid)
-        if meta is None:
-            continue
-        nodes[meta["src"]] = "Account"
-        nodes[meta["dst"]] = "Account"
-
+        meta = edge_metadata_lookup[eid]
         tag = " [TARGET EDGE]" if eid == target_edge_id else ""
-        line = f"- {meta['src']} transfers_to {meta['dst']}{tag}\n"
+        line = f"- {alias[meta['src']]} transfers_to {alias[meta['dst']]}{tag}\n"
         line += f"  amount: {meta['amount']:.2f} (currency: {meta['currency']})\n"
         line += f"  via: {meta['payment_format']}\n"
         line += f"  timestamp: {meta['timestamp']}\n"
@@ -270,15 +279,16 @@ def serialize_subgraph(edge_metadata_lookup, edge_ids, target_edge_id, imp_looku
                 line += (f"  importance: {imp:.3f}   \n")
         edge_lines.append(line)
 
-    node_lines = [f"- {name} (type: {ntype})" for name, ntype in nodes.items()]
-    return "**Nodes:**\n" + "\n".join(node_lines) + "\n**Edges:**\n" + "\n".join(edge_lines)
+    node_lines = [f"- {a} (type: Account, in-degree: {len(senders[acct])}, out-degree: {len(receivers[acct])})"
+                  for acct, a in alias.items()]
+    return "**Nodes:**\n" + "\n".join(node_lines) + "\n**Edges (chronological):**\n" + "\n".join(edge_lines)
 
 
 # 4. Few-shot prompt
 
 SYSTEM_PROMPT = """You are an expert financial crime investigator reviewing patterns of financial activities and behaviors of involved accounts to identify potential cases of money laundering. The data is represented as a graph, where:
-- Nodes are of type Account or Bank.
-- Edges represent relationships of type transfers_to or belongs_to, and include metadata such as amount, currency, payment method, and timestamp.
+- Nodes are accounts, anonymised as A1, A2, ... in order of first appearance. Each node lists its in-degree (number of distinct accounts that sent it money) and out-degree (number of distinct accounts it sent money to) within the subgraph.
+- Edges are transfers (transfers_to), listed in chronological order, with metadata such as amount, currency, payment method, and timestamp. The transaction under review is marked [TARGET EDGE].
 - Some edges also include an `importance` score produced by a graph neural network's explainability module (GNNExplainer), indicating how influential that edge was to the GNN's own prediction for the target transaction. Higher importance means the GNN relied on that edge more heavily when making its prediction.
 
 For training purposes, you will be shown examples of subgraph typologies that are known to be either suspicious (indicative of laundering tactics) or non-suspicious (routine financial activity). These typologies illustrate common structural patterns in financial networks."""
