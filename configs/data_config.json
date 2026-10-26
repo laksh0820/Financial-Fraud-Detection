@@ -1,7 +1,7 @@
 {
   "paths": {
-    "aml_data": "/kaggle/working/dataset", 
-    "model_to_load": "/kaggle/working/model",
-    "model_to_save": "/kaggle/working/model"
+    "aml_data": "/kaggle/working/aml_workflow/dataset", 
+    "model_to_load": "/kaggle/working/aml_workflow/model",
+    "model_to_save": "/kaggle/working/aml_workflow/model"
   }
 }
