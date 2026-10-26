@@ -96,3 +96,7 @@ wcwidth==0.8.2
 widgetsnbextension==4.0.15
 yarl==1.22.0
 zipp==3.23.1
+# Extras used by the tuning script and the LLM pattern classifier (unpinned)
+optuna
+peft
+bitsandbytes

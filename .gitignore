@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+logs/
+explanations/
+wandb/
+pattern_clf/
+focal_opt_results/
+*.tar
+*.png
