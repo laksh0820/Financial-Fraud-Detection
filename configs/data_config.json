@@ -1,7 +1,7 @@
 {
   "paths": {
-    "aml_data": "/kaggle/working/multignn/dataset", 
-    "model_to_load": "/kaggle/working/multignn/model",
-    "model_to_save": "/kaggle/working/multignn/model"
+    "aml_data": "/kaggle/working/dataset", 
+    "model_to_load": "/kaggle/working/model",
+    "model_to_save": "/kaggle/working/model"
   }
 }
