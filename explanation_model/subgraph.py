@@ -8,7 +8,21 @@ transaction at detection time).
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, Iterable, List, Optional
+
+
+def select_edge_ids(edge_ids: Iterable[int], target_edge_id: int,
+                    imp_by_id: Optional[Dict[int, float]] = None, max_edges: int = 40) -> List[int]:
+    """Which transactions of a sampled neighborhood are kept (at most `max_edges`).
+
+    The target is always kept (and comes first); if there are more candidates than fit, the others are
+    ranked by GNN-explainer importance. This is THE selection rule: `EdgeMetadataStore.build_subgraph`
+    (what the classifier sees) and the explanation plot both call it, so they show the same edges."""
+    imp_by_id = imp_by_id or {}
+    target_edge_id = int(target_edge_id)
+    others = [e for e in dict.fromkeys(int(i) for i in edge_ids) if e != target_edge_id]
+    others.sort(key=lambda e: imp_by_id.get(e, 0.0), reverse=True)  # stable: ties keep input order
+    return [target_edge_id] + others[:max(max_edges - 1, 0)]
 
 
 @dataclass

@@ -126,5 +126,6 @@ The LLM is loaded lazily, so a run that flags nothing never loads it.
   `Subgraph.serialize()`. Changing either requires rebuilding the dataset and re-training.
 * **Training vs. detection subgraphs.** The classifier is trained on complete laundering-attempt blocks. At detection
   time it sees the GNN-sampled neighborhood of the transaction, trimmed to the `--max_subgraph_edges` most important
-  edges (`detect.py`), which can contain unrelated transactions. Check accuracy of that end-to-end path on known fraud
+  edges (`detect.py`), which can contain unrelated transactions. The explanation plot draws exactly that
+  subgraph (same selection function, `select_edge_ids`), with the seed transaction always included. Check accuracy of that end-to-end path on known fraud
   edges before relying on it.

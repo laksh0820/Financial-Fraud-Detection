@@ -54,6 +54,7 @@ class ExplanationPipeline:
         if self.visualize:
             report["plot_path"] = plot_explanation(
                 importance, sample, edge_idx, args, "PRED_FRAUD",
-                f"Predicted fraud - pattern: {classification.pattern}", is_hetero)
+                f"Predicted fraud - pattern: {classification.pattern}", is_hetero,
+                max_edges=self.max_subgraph_edges)  # same cap as the classifier's subgraph
         logging.info(f"[edge {edge_idx}] pattern = {classification.pattern}")
         return report

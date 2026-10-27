@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from common.config import dataset_dir
-from explanation_model.subgraph import Edge, Subgraph
+from explanation_model.subgraph import Edge, Subgraph, select_edge_ids
 
 TIMESTAMP_OUT_FORMAT = "%Y/%m/%d %H:%M"
 _CSV_COLUMNS = ['from_id', 'to_id', 'Timestamp', 'Amount Received', 'Received Currency',
@@ -89,13 +89,8 @@ class EdgeMetadataStore:
         neighborhood is larger, the most important edges (per the GNN explainer) are kept, plus
         the target. Ordered chronologically."""
         self._ensure_loaded()
+        valid = (e for e in global_edge_ids if 0 <= int(e) < self._n)
+        ids = select_edge_ids(valid, target_edge_id, imp_by_id, max_edges)  # shared with the plot
         imp_by_id = imp_by_id or {}
-        ids = [e for e in dict.fromkeys(int(g) for g in global_edge_ids) if 0 <= e < self._n]
-        if target_edge_id not in ids:
-            ids.append(int(target_edge_id))
-        if len(ids) > max_edges:
-            others = sorted((e for e in ids if e != target_edge_id),
-                            key=lambda e: imp_by_id.get(e, 0.0), reverse=True)
-            ids = [int(target_edge_id)] + others[:max_edges - 1]
         edges = [self.get_edge(e, imp_by_id.get(e)) for e in ids]
         return Subgraph.from_edges(edges, int(target_edge_id))
