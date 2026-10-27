@@ -60,8 +60,8 @@ def compute_edge_importance(model, sample, is_hetero) -> EdgeImportance:
         finally:
             model.eval()
 
-        logging.info("Edge mask:\n%s", explanation.edge_mask.detach().cpu().numpy())
-        logging.info("Node feature mask:\n%s", explanation.node_mask.detach().cpu().numpy())
+        # logging.info("Edge mask:\n%s", explanation.edge_mask.detach().cpu().numpy())
+        # logging.info("Node feature mask:\n%s", explanation.node_mask.detach().cpu().numpy())
 
         edge_index_np = batch.edge_index.cpu().numpy()
         edge_imp = explanation.edge_mask.cpu().detach().numpy()
@@ -83,12 +83,12 @@ def compute_edge_importance(model, sample, is_hetero) -> EdgeImportance:
         finally:
             model.eval()
 
-        logging.info("Node feature mask (per node type):")
-        for ntype, node_mask in explanation.node_mask_dict.items():
-            logging.info(f"  {ntype}: {node_mask.detach().cpu().numpy()}")
-        logging.info("Edge mask (per canonical edge type):")
-        for etype, edge_mask in explanation.edge_mask_dict.items():
-            logging.info(f"  {etype}: {edge_mask.detach().cpu().numpy()}")
+        # logging.info("Node feature mask (per node type):")
+        # for ntype, node_mask in explanation.node_mask_dict.items():
+        #     logging.info(f"  {ntype}: {node_mask.detach().cpu().numpy()}")
+        # logging.info("Edge mask (per canonical edge type):")
+        # for etype, edge_mask in explanation.edge_mask_dict.items():
+        #     logging.info(f"  {etype}: {edge_mask.detach().cpu().numpy()}")
 
         to_edge_index_np = batch[TO_REL].edge_index.cpu().numpy()
         rev_edge_index_np = batch[REV_REL].edge_index.cpu().numpy()
