@@ -7,3 +7,4 @@ pattern_clf/
 focal_opt_results/
 *.tar
 *.png
+integration_test/
